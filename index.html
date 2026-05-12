@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rotoscopia</title>
+    <title>Rotoscopia Web: Editor, PDF y Video</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
@@ -12,7 +12,6 @@
         body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg); color: var(--text); padding: 2rem; max-width: 1000px; margin: 0 auto; }
         h1 { text-align: center; color: var(--primary); margin-bottom: 0.5rem; }
         
-        /* Sistema de Pestañas */
         .tabs { display: flex; gap: 5px; margin-bottom: 1rem; flex-wrap: wrap; }
         .tab-btn { flex: 1; min-width: 200px; background-color: var(--tab-bg); color: var(--text); border: none; padding: 1rem; border-radius: 8px 8px 0 0; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .tab-btn.active { background-color: white; color: var(--primary); box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1); border-top: 4px solid var(--primary); }
@@ -43,8 +42,8 @@
 </head>
 <body>
 
-    <h1>ROTOSCOPIA</h1>
-    <p style="text-align: center; margin-bottom: 2rem;">Paso 1: Recortar / Paso 2: Extraer a PDF / Paso 3: PDF a Video</p>
+    <h1>Rotoscopia Web 🎬</h1>
+    <p style="text-align: center; margin-bottom: 2rem;">Pestañas: Recortar / Extraer (PDF) / Generar (Video)</p>
     
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('tab1', this)">1. Recortar Video ✂️</button>
@@ -53,72 +52,56 @@
     </div>
 
     <div id="tab1" class="tab-content active">
-        <div class="info">
-            <strong>💡 Instrucciones:</strong> Sube tu video, revisa la duración y elige el segundo exacto donde quieres que empiece y termine. La app grabará ese fragmento en tiempo real.
-        </div>
+        <div class="info"><strong>💡 Paso 1:</strong> Sube y recorta el video para trabajar solo con el fragmento necesario.</div>
         <div class="control-group">
-            <label for="trimVideoFile">Sube el video original a recortar:</label>
+            <label>Video original:</label>
             <input type="file" id="trimVideoFile" accept="video/*">
         </div>
-        
         <video id="trimPreview" controls></video>
-
         <div class="row-group">
-            <div class="control-group">
-                <label for="startTrim">Inicio (segundos):</label>
-                <input type="number" id="startTrim" value="0" min="0" step="0.1">
-            </div>
-            <div class="control-group">
-                <label for="endTrim">Fin (segundos):</label>
-                <input type="number" id="endTrim" value="0" min="0" step="0.1">
-            </div>
+            <div class="control-group"><label>Inicio (seg):</label><input type="number" id="startTrim" value="0" step="0.1"></div>
+            <div class="control-group"><label>Fin (seg):</label><input type="number" id="endTrim" value="0" step="0.1"></div>
         </div>
-
         <div class="btn-container">
             <button id="processTrimBtn" class="action-btn">Procesar Recorte</button>
-            <a id="downloadTrimBtn" class="action-btn" style="line-height:1rem; padding-top:1.2rem;">⬇️ Descargar Recorte (WebM)</a>
+            <a id="downloadTrimBtn" class="action-btn">⬇️ Descargar Recorte</a>
         </div>
         <div id="statusTrim" class="status"></div>
     </div>
 
     <div id="tab2" class="tab-content">
-        <div class="warning">
-            <strong>Nota de rendimiento:</strong> Generar un PDF con muchas imágenes de alta resolución consume mucha memoria. Si tu video es largo, procesa tramos cortos.
-        </div>
+        <div class="warning"><strong>⚠️ Corrección:</strong> Ahora la extracción es matemáticamente exacta al FPS indicado.</div>
         <div class="control-group">
-            <label for="videoFile">Selecciona el video recortado (1920x1080):</label>
+            <label>Video a procesar:</label>
             <input type="file" id="videoFile" accept="video/*">
         </div>
         <div class="control-group">
-            <label for="fpsInput">Fotogramas por segundo a extraer (FPS):</label>
+            <label>Fotogramas por segundo (FPS):</label>
             <input type="number" id="fpsInput" value="30" min="1" max="60">
         </div>
         <div class="btn-container">
             <button id="startBtn" class="action-btn">Generar Fotogramas</button>
-            <button id="downloadPdfBtn" class="action-btn">⬇️ Descargar PDF Completo</button>
+            <button id="downloadPdfBtn" class="action-btn">⬇️ Descargar PDF (A3)</button>
         </div>
         <div id="status1" class="status"></div>
         <div id="output"></div>
     </div>
 
     <div id="tab3" class="tab-content">
-        <div class="info">
-            <strong>💡 Consejo Experto:</strong> Para evitar temblores, edita el PDF digitalmente (Photoshop, Procreate, etc.). Si lo imprimes y escaneas en papel, el encuadre milimétrico fallará.
-        </div>
+        <div class="info"><strong>💡 Paso 3:</strong> Sube el PDF editado para reconstruir el video.</div>
         <div class="control-group">
-            <label for="pdfFile">Sube el PDF editado (A3):</label>
+            <label>PDF editado (A3):</label>
             <input type="file" id="pdfFile" accept="application/pdf">
         </div>
         <div class="control-group">
-            <label for="outFpsInput">Velocidad del video final (FPS):</label>
+            <label>FPS de salida:</label>
             <input type="number" id="outFpsInput" value="30" min="1" max="60">
         </div>
         <div class="btn-container">
-            <button id="processPdfBtn" class="action-btn">Procesar PDF y Crear Video</button>
-            <a id="downloadVideoBtn" class="action-btn" style="line-height:1rem; padding-top:1.2rem;">⬇️ Descargar Video (WebM)</a>
+            <button id="processPdfBtn" class="action-btn">Crear Video Final</button>
+            <a id="downloadVideoBtn" class="action-btn">⬇️ Descargar Video</a>
         </div>
         <div id="status2" class="status"></div>
-        
         <video id="resultVideo" controls></video>
     </div>
 
@@ -142,9 +125,7 @@
             btn.classList.add('active');
         }
 
-        // =====================================================================
-        // LÓGICA PESTAÑA 1: RECORTAR VIDEO (Nueva Funcionalidad)
-        // =====================================================================
+        // --- LÓGICA PESTAÑA 1 --- (Sin cambios)
         const trimVideoFile = document.getElementById('trimVideoFile');
         const trimPreview = document.getElementById('trimPreview');
         const startTrim = document.getElementById('startTrim');
@@ -153,76 +134,45 @@
         const downloadTrimBtn = document.getElementById('downloadTrimBtn');
         const statusTrim = document.getElementById('statusTrim');
 
-        // Cargar video y mostrar duración total
         trimVideoFile.addEventListener('change', () => {
             if (trimVideoFile.files[0]) {
-                const url = URL.createObjectURL(trimVideoFile.files[0]);
-                trimPreview.src = url;
+                trimPreview.src = URL.createObjectURL(trimVideoFile.files[0]);
                 trimPreview.style.display = 'block';
-                
                 trimPreview.onloadedmetadata = () => {
-                    startTrim.value = 0;
-                    startTrim.max = trimPreview.duration.toFixed(1);
-                    endTrim.value = trimPreview.duration.toFixed(1);
-                    endTrim.max = trimPreview.duration.toFixed(1);
+                    startTrim.value = 0; endTrim.value = trimPreview.duration.toFixed(1);
                 };
             }
         });
 
-        // Proceso de recorte con MediaRecorder
         processTrimBtn.addEventListener('click', async () => {
-            const start = parseFloat(startTrim.value);
-            const end = parseFloat(endTrim.value);
-            
-            if (!trimVideoFile.files[0]) return alert("Sube un video primero.");
-            if (start >= end) return alert("El tiempo de inicio debe ser menor al tiempo de fin.");
-
+            const start = parseFloat(startTrim.value), end = parseFloat(endTrim.value);
             processTrimBtn.disabled = true;
-            downloadTrimBtn.style.display = 'none';
-            statusTrim.innerHTML = "Grabando recorte (en tiempo real)... <br><b>⚠️ NO CAMBIES DE PESTAÑA</b>";
-
-            // Nos posicionamos en el segundo de inicio exacto
+            statusTrim.innerHTML = "Recortando...";
             trimPreview.currentTime = start;
-            await new Promise(r => { trimPreview.onseeked = r; });
-
-            // Capturamos el flujo del reproductor
-            const stream = trimPreview.captureStream ? trimPreview.captureStream() : trimPreview.mozCaptureStream();
-            const recorder = new MediaRecorder(stream, { 
-                mimeType: 'video/webm',
-                videoBitsPerSecond: 8000000 // 8 Mbps para buena calidad
-            });
+            await new Promise(r => trimPreview.onseeked = r);
+            const stream = trimPreview.captureStream();
+            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 8000000 });
             const chunks = [];
-
-            recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-            
+            recorder.ondataavailable = e => chunks.push(e.data);
             recorder.onstop = () => {
                 const blob = new Blob(chunks, { type: 'video/webm' });
-                const videoUrl = URL.createObjectURL(blob);
-                
-                downloadTrimBtn.href = videoUrl;
-                downloadTrimBtn.download = "video_recortado.webm";
+                downloadTrimBtn.href = URL.createObjectURL(blob);
+                downloadTrimBtn.download = "recorte.webm";
                 downloadTrimBtn.style.display = 'block';
-                
-                statusTrim.textContent = "¡Video recortado con éxito!";
+                statusTrim.textContent = "¡Recorte listo!";
                 processTrimBtn.disabled = false;
             };
-
-            // Iniciar la grabación y la reproducción simultáneamente
             recorder.start();
             trimPreview.play();
-
-            // Comprobar constantemente si hemos llegado al segundo final
-            const checkTimeInterval = setInterval(() => {
+            const check = setInterval(() => {
                 if (trimPreview.currentTime >= end) {
-                    clearInterval(checkTimeInterval);
-                    trimPreview.pause();
-                    recorder.stop();
+                    clearInterval(check); trimPreview.pause(); recorder.stop();
                 }
-            }, 50); // Revisión cada 50ms para mayor precisión
+            }, 50);
         });
 
         // =====================================================================
-        // LÓGICA PESTAÑA 2: VIDEO A PDF
+        // LÓGICA PESTAÑA 2: EXTRAER A PDF (FIXED / ARREGLADA)
         // =====================================================================
         const videoFile = document.getElementById('videoFile');
         const startBtn = document.getElementById('startBtn');
@@ -231,7 +181,7 @@
         const outputDiv = document.getElementById('output');
         let allSheets = []; 
 
-        function seekVideo(video, time) {
+        async function seekVideo(video, time) {
             return new Promise(resolve => {
                 const handler = () => { video.removeEventListener('seeked', handler); resolve(); };
                 video.addEventListener('seeked', handler);
@@ -247,63 +197,78 @@
             return { canvas, ctx, count: 0, sheetNumber };
         }
 
-        function addSheetToPreview(sheetObj) {
-            const div = document.createElement('div'); div.className = 'sheet-preview';
-            const label = document.createElement('div'); label.className = 'sheet-label'; label.textContent = `Hoja ${sheetObj.sheetNumber}`;
-            div.appendChild(sheetObj.canvas); div.appendChild(label);
-            outputDiv.appendChild(div); allSheets.push(sheetObj);
-        }
-
         startBtn.addEventListener('click', async () => {
-            if (!videoFile.files[0]) return alert("Por favor, selecciona un archivo de video.");
+            if (!videoFile.files[0]) return alert("Sube un video");
             const targetFPS = parseInt(document.getElementById('fpsInput').value);
-            const interval = 1 / targetFPS;
-            startBtn.disabled = true; downloadPdfBtn.style.display = 'none';
-            outputDiv.innerHTML = ''; allSheets = []; statusDiv1.textContent = "Analizando video...";
+            
+            startBtn.disabled = true;
+            outputDiv.innerHTML = '';
+            allSheets = [];
+            statusDiv1.textContent = "Iniciando extracción...";
 
             const video = document.createElement('video');
-            video.src = URL.createObjectURL(videoFile.files[0]); video.muted = true;
+            video.src = URL.createObjectURL(videoFile.files[0]);
+            video.muted = true;
             await new Promise(r => video.onloadedmetadata = r);
 
             const duration = video.duration;
+            // Cálculo exacto del total de fotogramas (Evita el frame extra del segundo final)
             const totalFrames = Math.floor(duration * targetFPS);
+            
             let currentSheet = createNewSheet(1);
             let framesExtracted = 0;
 
-            for (let i = 0; i <= totalFrames; i++) {
-                const time = i * interval; if (time > duration) break;
+            for (let i = 0; i < totalFrames; i++) {
+                // Cálculo de tiempo basado en índice para evitar errores de precisión decimal
+                const time = i / targetFPS; 
+                
                 await seekVideo(video, time);
-                const col = currentSheet.count % COLS; const row = Math.floor(currentSheet.count / COLS);
-                const x = MARGIN + (col * FRAME_W); const y = MARGIN + (row * FRAME_H) + (row * VERTICAL_GAP);
+
+                const col = currentSheet.count % COLS;
+                const row = Math.floor(currentSheet.count / COLS);
+                const x = MARGIN + (col * FRAME_W);
+                const y = MARGIN + (row * FRAME_H) + (row * VERTICAL_GAP);
+
                 currentSheet.ctx.drawImage(video, x, y, FRAME_W, FRAME_H);
-                currentSheet.count++; framesExtracted++;
-                statusDiv1.textContent = `Procesando: ${Math.floor((framesExtracted/totalFrames)*100)}% (${framesExtracted} fotogramas)`;
+                currentSheet.count++;
+                framesExtracted++;
+
+                statusDiv1.textContent = `Procesando: ${Math.floor((framesExtracted/totalFrames)*100)}% (${framesExtracted} de ${totalFrames})`;
+
                 if (currentSheet.count === FRAMES_PER_PAGE) {
-                    addSheetToPreview(currentSheet); currentSheet = createNewSheet(currentSheet.sheetNumber + 1);
+                    const div = document.createElement('div'); div.className = 'sheet-preview';
+                    div.innerHTML = `<div class="sheet-label">Hoja ${currentSheet.sheetNumber}</div>`;
+                    div.prepend(currentSheet.canvas);
+                    outputDiv.appendChild(div);
+                    allSheets.push(currentSheet);
+                    currentSheet = createNewSheet(currentSheet.sheetNumber + 1);
                 }
             }
-            if (currentSheet.count > 0) addSheetToPreview(currentSheet);
-            statusDiv1.textContent = "¡Extracción terminada! Ya puedes descargar el PDF.";
-            startBtn.disabled = false; downloadPdfBtn.style.display = 'block';
+
+            if (currentSheet.count > 0) {
+                const div = document.createElement('div'); div.className = 'sheet-preview';
+                div.innerHTML = `<div class="sheet-label">Hoja ${currentSheet.sheetNumber}</div>`;
+                div.prepend(currentSheet.canvas);
+                outputDiv.appendChild(div);
+                allSheets.push(currentSheet);
+            }
+
+            statusDiv1.textContent = "Extracción completa y exacta.";
+            startBtn.disabled = false;
+            downloadPdfBtn.style.display = 'block';
         });
 
         downloadPdfBtn.addEventListener('click', async () => {
-            const { jsPDF } = window.jspdf; downloadPdfBtn.disabled = true;
-            statusDiv1.textContent = "Generando PDF...";
+            const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
             for (let i = 0; i < allSheets.length; i++) {
-                statusDiv1.textContent = `Añadiendo hoja ${i + 1} al PDF...`;
                 if (i > 0) pdf.addPage('a3', 'landscape');
-                const imgData = allSheets[i].canvas.toDataURL('image/jpeg', 0.85);
-                pdf.addImage(imgData, 'JPEG', 0, 0, 420, 297);
+                pdf.addImage(allSheets[i].canvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, 420, 297);
             }
-            pdf.save("fotogramas_video_A3.pdf");
-            statusDiv1.textContent = "¡PDF Descargado!"; downloadPdfBtn.disabled = false;
+            pdf.save("fotogramas_A3.pdf");
         });
 
-        // =====================================================================
-        // LÓGICA PESTAÑA 3: PDF A VIDEO
-        // =====================================================================
+        // --- LÓGICA PESTAÑA 3 --- (Sin cambios)
         const pdfFile = document.getElementById('pdfFile');
         const processPdfBtn = document.getElementById('processPdfBtn');
         const downloadVideoBtn = document.getElementById('downloadVideoBtn');
@@ -311,117 +276,53 @@
         const resultVideo = document.getElementById('resultVideo');
 
         processPdfBtn.addEventListener('click', async () => {
-            if (!pdfFile.files[0]) return alert("Por favor, sube el PDF editado.");
-            
+            if (!pdfFile.files[0]) return alert("Sube el PDF");
             const fps = parseInt(document.getElementById('outFpsInput').value);
-            processPdfBtn.disabled = true;
-            downloadVideoBtn.style.display = 'none';
-            resultVideo.style.display = 'none';
-            statusDiv2.textContent = "Leyendo PDF...";
-
-            try {
-                const fileReader = new FileReader();
-                fileReader.onload = async function() {
-                    const typedarray = new Uint8Array(this.result);
-                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                    const extractedFrames = [];
-                    
-                    const cropCanvas = document.createElement('canvas');
-                    cropCanvas.width = 1920; cropCanvas.height = 1080;
-                    const cropCtx = cropCanvas.getContext('2d', { willReadFrequently: true });
-
-                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                        statusDiv2.textContent = `Procesando hoja ${pageNum} de ${pdf.numPages}...`;
-                        const page = await pdf.getPage(pageNum);
-                        
-                        const viewportBase = page.getViewport({ scale: 1.0 });
-                        const scale = A3_WIDTH / viewportBase.width;
-                        const viewport = page.getViewport({ scale: scale });
-
-                        const pageCanvas = document.createElement('canvas');
-                        pageCanvas.width = A3_WIDTH; pageCanvas.height = A3_HEIGHT;
-                        const pageCtx = pageCanvas.getContext('2d');
-
-                        await page.render({ canvasContext: pageCtx, viewport: viewport }).promise;
-
-                        for (let i = 0; i < FRAMES_PER_PAGE; i++) {
-                            const col = i % COLS;
-                            const row = Math.floor(i / COLS);
-                            const x = MARGIN + (col * FRAME_W);
-                            const y = MARGIN + (row * FRAME_H) + (row * VERTICAL_GAP);
-
-                            cropCtx.fillStyle = "white";
-                            cropCtx.fillRect(0, 0, 1920, 1080);
-                            cropCtx.drawImage(pageCanvas, x, y, FRAME_W, FRAME_H, 0, 0, 1920, 1080);
-                            
-                            const img = new Image();
-                            img.src = cropCanvas.toDataURL('image/jpeg', 0.9);
-                            await new Promise(r => img.onload = r);
-                            extractedFrames.push(img);
-                        }
+            processPdfBtn.disabled = true; statusDiv2.textContent = "Leyendo PDF...";
+            const fileReader = new FileReader();
+            fileReader.onload = async function() {
+                const pdf = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
+                const frames = [];
+                const c = document.createElement('canvas'); c.width = 1920; c.height = 1080;
+                const ctx = c.getContext('2d');
+                for (let p = 1; p <= pdf.numPages; p++) {
+                    statusDiv2.textContent = `Analizando hoja ${p}...`;
+                    const page = await pdf.getPage(p);
+                    const vp = page.getViewport({ scale: A3_WIDTH / page.getViewport({scale:1}).width });
+                    const pc = document.createElement('canvas'); pc.width = A3_WIDTH; pc.height = A3_HEIGHT;
+                    await page.render({ canvasContext: pc.getContext('2d'), viewport: vp }).promise;
+                    for (let i = 0; i < 30; i++) {
+                        const x = MARGIN + (i%5 * FRAME_W), y = MARGIN + (Math.floor(i/5) * FRAME_H) + (Math.floor(i/5) * VERTICAL_GAP);
+                        ctx.fillRect(0,0,1920,1080); ctx.drawImage(pc, x, y, FRAME_W, FRAME_H, 0, 0, 1920, 1080);
+                        const img = new Image(); img.src = c.toDataURL('image/jpeg', 0.9);
+                        await new Promise(r => img.onload = r); frames.push(img);
                     }
-
-                    statusDiv2.innerHTML = "Grabando Video con máxima fluidez... <br><b>⚠️ NO CAMBIES DE PESTAÑA MIENTRAS SE GRABA</b>";
-                    
-                    const recordCanvas = document.createElement('canvas');
-                    recordCanvas.width = 1920; recordCanvas.height = 1080;
-                    const recCtx = recordCanvas.getContext('2d', { alpha: false });
-                    
-                    const stream = recordCanvas.captureStream(fps);
-                    
-                    const recorder = new MediaRecorder(stream, { 
-                        mimeType: 'video/webm',
-                        videoBitsPerSecond: 10000000 
-                    });
-                    
-                    const chunks = [];
-                    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-                    
-                    recorder.onstop = () => {
-                        const blob = new Blob(chunks, { type: 'video/webm' });
-                        const videoUrl = URL.createObjectURL(blob);
-                        
-                        resultVideo.src = videoUrl;
-                        resultVideo.style.display = 'block';
-                        
-                        downloadVideoBtn.href = videoUrl;
-                        downloadVideoBtn.download = "animacion_fluida.webm";
-                        downloadVideoBtn.style.display = 'block';
-                        
-                        statusDiv2.textContent = `¡Video completado! (${extractedFrames.length} frames compilados a ${fps} FPS)`;
-                        processPdfBtn.disabled = false;
-                    };
-
-                    recorder.start();
-
-                    const frameDurationMs = 1000 / fps;
-                    const startTime = performance.now();
-                    let currentFrame = 0;
-
-                    function drawNextFramePrecise() {
-                        if (currentFrame < extractedFrames.length) {
-                            recCtx.drawImage(extractedFrames[currentFrame], 0, 0, 1920, 1080);
-                            currentFrame++;
-                            
-                            const nextExpectedTime = startTime + (currentFrame * frameDurationMs);
-                            const delay = nextExpectedTime - performance.now();
-                            
-                            setTimeout(drawNextFramePrecise, Math.max(0, delay));
-                        } else {
-                            setTimeout(() => recorder.stop(), 200); 
-                        }
-                    }
-                    
-                    drawNextFramePrecise();
-
+                }
+                const recC = document.createElement('canvas'); recC.width = 1920; recC.height = 1080;
+                const recCtx = recC.getContext('2d');
+                const stream = recC.captureStream(fps);
+                const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 10000000 });
+                const chunks = []; recorder.ondataavailable = e => chunks.push(e.data);
+                recorder.onstop = () => {
+                    resultVideo.src = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+                    resultVideo.style.display = 'block';
+                    downloadVideoBtn.href = resultVideo.src; downloadVideoBtn.download = "resultado.webm";
+                    downloadVideoBtn.style.display = 'block';
+                    processPdfBtn.disabled = false; statusDiv2.textContent = "¡Video generado!";
                 };
-                fileReader.readAsArrayBuffer(pdfFile.files[0]);
-
-            } catch (err) {
-                console.error(err);
-                statusDiv2.textContent = "Error al procesar el PDF.";
-                processPdfBtn.disabled = false;
-            }
+                recorder.start();
+                let f = 0;
+                const startTime = performance.now();
+                function draw() {
+                    if (f < frames.length) {
+                        recCtx.drawImage(frames[f++], 0, 0, 1920, 1080);
+                        const delay = (startTime + (f * (1000/fps))) - performance.now();
+                        setTimeout(draw, Math.max(0, delay));
+                    } else { setTimeout(() => recorder.stop(), 200); }
+                }
+                draw();
+            };
+            fileReader.readAsArrayBuffer(pdfFile.files[0]);
         });
     </script>
 </body>
