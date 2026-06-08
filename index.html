@@ -193,7 +193,7 @@
         logger.scrollTop = logger.scrollHeight;
     }
 
-    // --- PASO 1 (RECORTAR) --- (Sin cambios)
+    // --- PASO 1 (RECORTAR) ---
     const t1File = document.getElementById('t1-file');
     const t1Prev = document.getElementById('t1-preview');
     t1File.onchange = () => {
@@ -213,7 +213,7 @@
         const timer = setInterval(() => { if (t1Prev.currentTime >= end) { clearInterval(timer); t1Prev.pause(); recorder.stop(); } }, 100);
     };
 
-    // --- PASO 2 (PDF ESTABLE) --- (Sin cambios)
+    // --- PASO 2 (PDF ESTABLE) ---
     let sheetBlobs = [];
     document.getElementById('t2-btn').onclick = async () => {
         const file = document.getElementById('t2-file').files[0];
@@ -259,37 +259,35 @@
     let cachedPageCanvas = document.createElement('canvas'); // RAM Estable
     let cachedPageCtx = cachedPageCanvas.getContext('2d');
 
-    // NUEVO ESTADO DE CALIBRACIÓN INDEPENDIENTE POR GRUPO DE DRIVING Drifting (localized framing)
-    // Matemáticas base del A3 para inicializar
+    // ESTADO DE CALIBRACIÓN INDEPENDIENTE POR GRUPO DE DRIVING (localized framing)
     const DEF_W = Math.round(FRAME_W), DEF_H = Math.round(FRAME_H);
     
-    // Almacena independentemente X/Deriva y Deriva
+    // Almacena independentemente X/Deriva y Y/Deriva
     let colFraming = {
-        left:   { ox: 0, w: DEF_W }, // Calibración Columna 0
-        middle: { ox: 0, w: DEF_W }, // Calibración Columnas 1-3
-        right:  { ox: 0, w: DEF_W }  // Calibración Columna 4
+        left:   { ox: 0, w: DEF_W }, // Calibración Columna 0 (Margen Izquierdo)
+        middle: { ox: 0, w: DEF_W }, // Calibración Columnas 1-3 (Centro)
+        right:  { ox: 0, w: DEF_W }  // Calibración Columna 4 (Margen Derecho)
     };
     let rowFraming = {
-        top:    { oy: 0, h: DEF_H }, // Calibración Fila 0
-        middle: { oy: 0, h: DEF_H }, // Calibración Filas 1-4
-        bottom: { oy: 0, h: DEF_H }  // Calibración Fila 5
+        top:    { oy: 0, h: DEF_H }, // Calibración Fila 0 (Margen Superior)
+        middle: { oy: 0, h: DEF_H }, // Calibración Filas 1-4 (Medio)
+        bottom: { oy: 0, h: DEF_H }  // Calibración Fila 5 (Margen Inferior)
     };
 
     // Estado del selector de calibración interactiva
-    let activeEditDimension = 'col'; // 'col' (X/Deriva) o 'row' (Y/Deriva)
+    let activeEditDimension = 'col'; // 'col' (X/W) o 'row' (Y/H)
     let activeEditPosition = 'middle'; // 'middle', 'left'/'top', 'right'/'bottom'
 
     // Padding de entorno visual (200px) para ver el desfase del papel
     const PAD = 200; 
 
     // Estado del ratón interactivo
-    let dragMode = null; // null, 'move', 'tl', 'tr', 'bl', 'br'
+    let dragMode = null; // null, 'move', 'col-l', 'col-r', 'row-t', 'row-b'
     let startMouseX = 0, startMouseY = 0;
     let startOffsetX = 0, startOffsetY = 0, startW = 0, startH = 0;
     const HANDLE_RADIUS = 28; // Sensibilidad del área del tirador en píxeles
 
     // --- UI/SELECTORES DE GRUPO ---
-    // Cambia la Dimensión (X/Ancho o Y/Alto) y actualiza los botones de posición
     function selectFramingDimension(dim, btn) {
         activeEditDimension = dim;
         document.querySelectorAll('.dim-btn').forEach(b => b.classList.remove('active'));
@@ -315,55 +313,59 @@
         checkGroupRelevance();
     }
 
-    // Cambia la Posición dentro de la dimensión actual
     function selectFramingPosition(pos, btn) {
         activeEditPosition = pos;
         document.querySelectorAll('.group-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        
-        // Forzar actualización visual si corresponde
         checkGroupRelevance();
     }
 
     // Comprueba si el fotograma actual en el slider es RELEVANTE para el grupo seleccionado.
-    // Si no lo es, posiciona el slider automáticamente en el fotograma relevante por defecto.
+    // Si no lo es, posiciona el slider automáticamente en el primer fotograma relevante de esa zona.
     function checkGroupRelevance() {
         if (!currentPdfForPreview) return;
         const slider = document.getElementById('t3-prev-frame');
         const currentFrameVal = parseInt(slider.value);
-        const col = (currentFrameVal - 1) % 5;
-        const row = Math.floor((currentFrameVal - 1) / 30);
+        
+        // Coordenadas locales dentro de la hoja A3 (0-29)
+        const frameLocalIdx = (currentFrameVal - 1) % 30;
+        const col = frameLocalIdx % 5;
+        const rowOnSheet = Math.floor(frameLocalIdx / 5); // Fila efectiva dentro de la hoja (0-5)
         
         let isRelevant = false;
-        // Lógica Columna: relevante si col coincide
+        // Lógica Columna (X/Ancho): relevante si la columna actual coincide con la zona
         if (activeEditDimension === 'col') {
             if (activeEditPosition === 'left' && col === 0) isRelevant = true;
             if (activeEditPosition === 'right' && col === 4) isRelevant = true;
             if (activeEditPosition === 'middle' && col >= 1 && col <= 3) isRelevant = true;
-        } else { // Lógica Fila: relevante si row coincide
-            const effectiveRow = Math.floor( ( (currentFrameVal - 1) % 30 ) / 5 ); // Fila efectiva dentro de la hoja
-            if (activeEditPosition === 'top' && effectiveRow === 0) isRelevant = true;
-            if (activeEditPosition === 'bottom' && effectiveRow === 5) isRelevant = true;
-            if (activeEditPosition === 'middle' && effectiveRow >= 1 && effectiveRow <= 4) isRelevant = true;
+        } else { // Lógica Fila (Y/Alto): relevante si la fila efectiva dentro de la hoja coincide con la zona
+            if (activeEditPosition === 'top' && rowOnSheet === 0) isRelevant = true;
+            if (activeEditPosition === 'bottom' && rowOnSheet === 5) isRelevant = true;
+            if (activeEditPosition === 'middle' && rowOnSheet >= 1 && rowOnSheet <= 4) isRelevant = true;
         }
 
         if (!isRelevant) {
-            // Posicionar automáticamente en el primer fotograma RELEVANTE por defecto para este grupo
-            let newFrame = 1;
+            // Posicionar automáticamente en el primer fotograma RELEVANTE por defecto para este grupo/zona
+            let newFrameOffset = 0; // Primer fotograma relevante dentro de la hoja (0-29)
             if (activeEditDimension === 'col') {
-                if (activeEditPosition === 'left') newFrame = 1; // Col 0
-                if (activeEditPosition === 'right') newFrame = 5; // Col 4
-                if (activeEditPosition === 'middle') newFrame = 2; // Col 1
+                if (activeEditPosition === 'left') newFrameOffset = 0; // Col 0
+                if (activeEditPosition === 'right') newFrameOffset = 4; // Col 4
+                if (activeEditPosition === 'middle') newFrameOffset = 1; // Col 1
             } else {
-                if (activeEditPosition === 'top') newFrame = 1; // Fila 0
-                if (activeEditPosition === 'bottom') newFrame = 26; // Fila 5 (Fila6 en A3 es Row5)
-                if (activeEditPosition === 'middle') newFrame = 6; // Fila 1
+                if (activeEditPosition === 'top') newFrameOffset = 0; // Row 0
+                if (activeEditPosition === 'bottom') newFrameOffset = 25; // Row 5 (Fotograma 26)
+                if (activeEditPosition === 'middle') newFrameOffset = 5; // Row 1 (Fotograma 6)
             }
-            slider.value = newFrame;
-            document.getElementById('t3-frame-val').textContent = newFrame;
+            
+            // Calculamos el fotograma absoluto en la hoja actual
+            const sheetNum = Math.floor((currentFrameVal - 1) / 30);
+            const newAbsoluteFrame = (sheetNum * 30) + newFrameOffset + 1;
+            
+            slider.value = newAbsoluteFrame;
+            document.getElementById('t3-frame-val').textContent = newAbsoluteFrame;
         }
         
-        loadFrameCache(); // Carga la caché y renderiza
+        loadFrameCache(); // Carga la caché RAM y renderiza
     }
 
     t3File.onchange = async () => {
@@ -377,10 +379,10 @@
                 slider.max = totalFramesAvailable; slider.value = 1;
                 document.getElementById('t3-frame-val').textContent = "1";
                 
-                // Mostrar panel y forzar selección por defecto (X Medio)
+                // Mostrar panel y forzar selección por defecto (Columnas Centro)
                 document.getElementById('t3-adjust-container').style.display = 'block';
-                selectFramingDimension('col', document.getElementById('btn-dim-col')); // Inicializa UI de posición
-                log(`¡Mesa interactiva calibrada! (${currentPdfForPreview.numPages} hojas).`);
+                selectFramingDimension('col', document.getElementById('btn-dim-col')); // Inicializa UI y carga caché
+                log(`¡PDF cargado interactivo! (${currentPdfForPreview.numPages} hojas). Calibra por zonas.`);
             } catch(e) {
                 log("Error interactivo."); console.error(e);
             }
@@ -416,29 +418,29 @@
     }
 
     // Dibuja el entorno interactivo (Recuadro + Tiradores) y actualiza el live output de 1080p.
-    // Muestra visualmente las configuraciones de Columnas Drifting y Filas Drifting para este fotograma.
+    // Muestra visualmente las configuraciones de Columnas Drifting y Filas Drifting para este fotograma exacto.
     function renderWorkspace() {
         if (!currentPdfForPreview) return;
         const frameIdx = parseInt(document.getElementById('t3-prev-frame').value) - 1;
         const localIdx = frameIdx % 30;
-        const col = localIdx % 5, row = Math.floor(localIdx / 5);
+        const col = localIdx % 5, row = Math.floor(localIdx / 5); // Row effective within sheet (0-5)
 
-        // 1. Matemáticas Drifting: Calcular encuadre específico para este fotograma exacto.
-        // Combinamos Columna Drifting y Fila Drifting (las esquinas se calculan automáticamente como intersección).
+        // 1. Matemáticas de Encuadre Localizado: Calcular parámetros de recorte para este fotograma exacto.
+        // Combinamos la calibración de la Columna Drifting y la Fila Drifting correspondiente.
         
-        // Coordenadas X/Deriva basándose en la COLUMNA Drifting
+        // Datos X/Deriva basándose en la COLUMNA Drifting exacta
         let configCol;
         if (col === 0) configCol = colFraming.left;
         else if (col === 4) configCol = colFraming.right;
         else configCol = colFraming.middle;
 
-        // Coordenadas Y/Deriva basándose en la FILA Drifting
+        // Datos Y/Deriva basándose en la FILA Drifting exacta (row 0-5)
         let configRow;
         if (row === 0) configRow = rowFraming.top;
         else if (row === 5) configRow = rowFraming.bottom;
         else configRow = rowFraming.middle;
 
-        // Mezcla final: X/W de Col, Y/H de Row
+        // Mezcla final milimétrica: X/W de Columna, Y/H de Fila (Esquinas se interseccionan automáticamente)
         const localizedOX = configCol.ox;
         const localizedW = configCol.w;
         const localizedOY = configRow.oy;
@@ -450,7 +452,7 @@
         const ctx = editorCanvas.getContext('2d');
         ctx.drawImage(cachedPageCanvas, 0, 0); // Dibujar segmento de hoja
 
-        // Coordenadas visuales de la caja en este lienzo expandido
+        // Coordenadas visuales de la caja en este lienzo expandido (offset PAD)
         const bx = PAD + localizedOX;
         const by = PAD + localizedOY;
         const bw = localizedW;
@@ -466,16 +468,18 @@
         // Caja de recorte interactiva (Dashed Blue)
         ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 6; ctx.setLineDash([12, 8]); ctx.strokeRect(bx, by, bw, bh); ctx.setLineDash([]); 
 
-        // Resaltar los tiradores si la dimensión es la activa
+        // Resaltar tiradores según dimensión activa (Azul o Rojo)
         ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4;
+        
+        // Coordenadas de los 4 tiradores interactivos
         const corners = [{x: bx, y: by}, {x: bx + bw, y: by}, {x: bx, y: by + bh}, {x: bx + bw, y: by + bh}];
         
-        // Dibujar los 4 Tiradores interactivos
+        // Dibujar los 4 Tiradores
         corners.forEach((c, idx) => {
             ctx.beginPath(); ctx.arc(c.x, c.y, 16, 0, Math.PI * 2); 
-            // Color según si estamos editando esa dimensión (esquina relevante)
-            ctx.fillStyle = "#2563eb"; // Por defecto azul
-            if (activeEditDimension === 'row' && idx > 1) ctx.fillStyle = "#e11d48"; // Rojo si editamos Alto (Y/H)
+            // Color según si estamos editando esa dimensión (X en azul, Y en rojo)
+            ctx.fillStyle = "#2563eb"; // Azul por defecto (X)
+            if (activeEditDimension === 'row' && idx > 1) ctx.fillStyle = "#e11d48"; // Rojo si editamos Alto (Y/H, bottom corners)
             ctx.fill(); ctx.stroke();
         });
 
@@ -483,44 +487,48 @@
         previewCanvas.width = 1920; previewCanvas.height = 1080;
         const pCtx = previewCanvas.getContext('2d');
         pCtx.fillStyle = "#000000"; pCtx.fillRect(0, 0, 1920, 1080);
-        // Recortamos de la caché expandida usando el encuadre matemático calibrado para este fotograma
+        // Recortamos milimétricamente de la caché expandida usando la calibración localizada calculada para este fotograma exacto
         pCtx.drawImage(cachedPageCanvas, bx, by, bw, bh, 0, 0, 1920, 1080);
 
-        // Actualizar título dinámico
-        const titleText = (activeEditDimension === 'col')
-            ? `Punto de Control: Margen ${activeEditPosition === 'left' ? 'Izquierdo' : activeEditPosition === 'right' ? 'Derecho' : 'Centro'} (Desplazar X, Ancho W)`
-            : `Punto de Control: Margen ${activeEditPosition === 'top' ? 'Arriba' : activeEditPosition === 'bottom' ? 'Abajo' : 'Centro'} (Desplazar Y, Alto H)`;
-        document.getElementById('workspace-title').textContent = titleText;
+        // Actualizar título dinámico de zona de control
+        const dimText = (activeEditDimension === 'col') ? 'Columnas (X, Ancho W)' : 'Filas (Y, Alto H)';
+        let posText = '';
+        if (activeEditDimension === 'col') {
+            posText = activeEditPosition === 'left' ? 'Margen Izquierdo (Col 0)' : activeEditPosition === 'right' ? 'Margen Derecho (Col 4)' : 'Zona Centro (Cols 1-3)';
+        } else {
+            posText = activeEditPosition === 'top' ? 'Margen Arriba (Row 0)' : activeEditPosition === 'bottom' ? 'Margen Abajo (Row 5)' : 'Filas Medio (1-4)';
+        }
+        document.getElementById('workspace-title').textContent = `📐 Mesa: ${posText} [${dimText}]`;
     }
 
     // --- MANEJO DE EVENTOS DE ARRASTRE SOBRE EL LIENZO (MODIFICADO PARA LOCALIZED FRAMING) ---
-    // Solo modifica los parámetros X/Deriva de Columnas Drifting O los parámetros Y/Deriva de Filas Drifting
+    // Solo modifica los parámetros X/W de Columnas Drifting O los parámetros Y/H de Filas Drifting, según la dimensión activa.
     editorCanvas.addEventListener('mousedown', (e) => {
         const rect = editorCanvas.getBoundingClientRect();
         const mx = (e.clientX - rect.left) * (editorCanvas.width / rect.width);
         const my = (e.clientY - rect.top) * (editorCanvas.height / rect.height);
 
-        // Obtenemos los punteros de datos del grupo ACTIVO seleccionado
-        const configCol = (activeEditDimension === 'col') ? colFraming[activeEditPosition] : null;
-        const configRow = (activeEditDimension === 'row') ? rowFraming[activeEditPosition] : null;
+        // Obtenemos los punteros de datos del grupo/zona ACTIVO seleccionado en la UI
+        const configCol = colFraming[activeEditPosition]; // Usamos la misma clave de posición para simplificar ('left'->Col 0, 'right'->Col 4, 'top'->Row 0, 'bottom'->Row 5, 'middle'->Medio)
+        const configRow = rowFraming[activeEditPosition];
 
-        // Lógica visual: obtenemos la geometría VISUAL del recuadro para detectar el clic
-        // Mezclamos configs (X de Col, Y de Row) para saber donde está la caja.
+        // Lógica visual: obtenemos la geometría VISUAL actual del recuadro para detectar el clic (Hit Test)
+        // Mezclamos X/W de Columna y Y/H de Fila Drifting para saber donde está el recuadro visual en la mesa expandida.
         // Pero para el hit test, solo nos interesa lo relativo a la DIMENSIÓN activa.
         
-        if (activeEditDimension === 'col' && configCol) {
-            // Editando Columnas (X, W)
-            const bx = PAD + configCol.ox, bw = configCol.w;
-            startMouseX = mx; startOffsetX = configCol.ox; startW = configCol.w;
+        if (activeEditDimension === 'col' && colFraming[activeEditPosition]) {
+            const config = colFraming[activeEditPosition]; // Grupo X activo
+            const bx = PAD + config.ox, bw = config.w;
+            startMouseX = mx; startOffsetX = config.ox; startW = config.w;
             
             // Hit tests horiz
             if (Math.hypot(mx - bx, my - PAD) < HANDLE_RADIUS * 2) dragMode = 'col-l'; // Borde izquierdo
             else if (Math.hypot(mx - (bx + bw), my - PAD) < HANDLE_RADIUS * 2) dragMode = 'col-r'; // Tirador derecho
             else if (mx > bx && mx < bx + bw) dragMode = 'col-move'; // Interior (Mover X)
-        } else if (activeEditDimension === 'row' && configRow) {
-            // Editando Filas (Y, H)
-            const by = PAD + configRow.oy, bh = configRow.h;
-            startMouseY = my; startOffsetY = configRow.oy; startH = configRow.h;
+        } else if (activeEditDimension === 'row' && rowFraming[activeEditPosition]) {
+            const config = rowFraming[activeEditPosition]; // Grupo Y activo
+            const by = PAD + config.oy, bh = config.h;
+            startMouseY = my; startOffsetY = config.oy; startH = config.h;
 
             // Hit tests vertical
             if (Math.hypot(mx - PAD, my - by) < HANDLE_RADIUS * 2) dragMode = 'row-t'; // Borde superior
@@ -535,15 +543,15 @@
         const mx = (e.clientX - rect.left) * (editorCanvas.width / rect.width);
         const my = (e.clientY - rect.top) * (editorCanvas.height / rect.height);
 
-        // Solo modificamos los datos del grupo ACTIVO seleccionado
+        // Solo modificamos los datos del grupo/zona ACTIVO seleccionado en la UI
         if (dragMode.startsWith('col')) {
-            const config = colFraming[activeEditPosition];
+            const config = colFraming[activeEditPosition]; // Grupo X activo
             const dx = mx - startMouseX;
             if (dragMode === 'col-move') config.ox = startOffsetX + dx;
             else if (dragMode === 'col-r') config.w = Math.max(100, startW + dx);
             else if (dragMode === 'col-l') { config.ox = startOffsetX + dx; config.w = Math.max(100, startW - dx); }
         } else if (dragMode.startsWith('row')) {
-            const config = rowFraming[activeEditPosition];
+            const config = rowFraming[activeEditPosition]; // Grupo Y activo
             const dy = my - startMouseY;
             if (dragMode === 'row-move') config.oy = startOffsetY + dy;
             else if (dragMode === 'row-b') config.h = Math.max(100, startH + dy);
@@ -564,48 +572,49 @@
         const file = t3File.files[0];
         if(!file) return alert("Sube tu archivo PDF primero."); const fps = parseInt(document.getElementById('t3-fps').value);
 
-        log("Abriendo PDF para reensamblaje definitivo localizado...");
+        log("Abriendo PDF para reensamblaje definitivo localizado milimétrico...");
         const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
         const frames = [];
         const c = document.createElement('canvas'); c.width = 1920; c.height = 1080;
         const cx = c.getContext('2d', {alpha: false});
 
         for (let p = 1; p <= pdf.numPages; p++) {
-            log(`Procesando hoja ${p} de ${pdf.numPages}... Reensamblando milimétricamente.`);
+            log(`Procesando hoja ${p} de ${pdf.numPages}... Aplicando encuadre localizado a cada fotograma.`);
             const page = await pdf.getPage(p);
             const vp = page.getViewport({ scale: A3_W / page.getViewport({scale:1}).width });
             const pc = document.createElement('canvas'); pc.width = A3_W; pc.height = A3_H;
             await page.render({ canvasContext: pc.getContext('2d'), viewport: vp }).promise;
 
             for (let i = 0; i < 30; i++) {
-                const col = i % 5, row = Math.floor(i / 5);
+                const col = i % 5, rowOnSheet = Math.floor(i / 5); // Fila efectiva dentro de la hoja A3 (0-5)
                 
-                // 1. Matemáticas Drifting Drifting (localized framing)
-                // Obtenemos encuadre milimétrico basándose exactamente en su posición en la cuadrícula A3.
+                // 1. Matemáticas Drifting (localized framing): Obtenemos encuadre milimétrico basándose exactamente en su posición en la cuadrícula A3.
                 
+                // Configuración X/Deriva basándose en la COLUMNA Drifting (col 0-4)
                 let configCol;
                 if (col === 0) configCol = colFraming.left;
                 else if (col === 4) configCol = colFraming.right;
                 else configCol = colFraming.middle;
 
+                // Configuración Y/Deriva basándose en la FILA Drifting (row 0-5)
                 let configRow;
-                if (row === 0) configRow = rowFraming.top;
-                else if (row === 5) configRow = rowFraming.bottom;
+                if (rowOnSheet === 0) configRow = rowFraming.top;
+                else if (rowOnSheet === 5) configRow = rowFraming.bottom;
                 else configRow = rowFraming.middle;
 
-                // Combinación final: X/W de Columna Drifting, Y/H de Fila Drifting (Intersección automática para esquinas).
+                // Combinación final milimétrica: X/W de Columna Drifting, Y/H de Fila Drifting (Intersección automática para esquinas).
                 const x = MARGIN + (col * FRAME_W) + configCol.ox;
-                const y = MARGIN + (row * FRAME_H) + (row * V_GAP) + configRow.oy;
+                const y = MARGIN + (rowOnSheet * FRAME_H) + (rowOnSheet * V_GAP) + configRow.oy;
                 const w = configCol.w;
                 const h = configRow.h;
                 
                 cx.fillStyle = "white"; cx.fillRect(0,0,1920,1080);
-                // Recortamos del A3 escaneado usando la calibración localizada de este fotograma exacto
+                // Recortamos milimétricamente del A3 escaneado usando la calibración localizada de este fotograma exacto
                 cx.drawImage(pc, x, y, w, h, 0, 0, 1920, 1080);
                 
                 const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
                 frames.push(URL.createObjectURL(blob));
-            } pc.width = 0; pc.height = 0;
+            } pc.width = 0; pc.height = 0; // Garbage Collector
         }
         
         log("Compilando película fluida...");
@@ -624,11 +633,9 @@
         function draw() {
             if (f < frames.length) {
                 const img = new Image(); img.src = frames[f];
-                img.onload = () => {
-                    rx.drawImage(img, 0, 0); f++;
+                img.onload = () => { rx.drawImage(img, 0, 0); f++;
                     const delay = (start + (f * (1000/fps))) - performance.now();
-                    setTimeout(draw, Math.max(0, delay));
-                };
+                    setTimeout(draw, Math.max(0, delay)); };
             } else { setTimeout(() => recorder.stop(), 500); }
         } draw();
     };
