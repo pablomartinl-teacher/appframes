@@ -193,7 +193,7 @@
         logger.scrollTop = logger.scrollHeight;
     }
 
-    // --- PASO 1 (RECORTAR) --- (Sin cambios)
+    // --- PASO 1 (RECORTAR) ---
     const t1File = document.getElementById('t1-file');
     const t1Prev = document.getElementById('t1-preview');
     t1File.onchange = () => {
@@ -213,7 +213,7 @@
         const timer = setInterval(() => { if (t1Prev.currentTime >= end) { clearInterval(timer); t1Prev.pause(); recorder.stop(); } }, 100);
     };
 
-    // --- PASO 2 (PDF ESTABLE) --- (Sin cambios)
+    // --- PASO 2 (PDF ESTABLE) ---
     let sheetBlobs = [];
     document.getElementById('t2-btn').onclick = async () => {
         const file = document.getElementById('t2-file').files[0];
@@ -262,7 +262,7 @@
     // ESTADO DE CALIBRACIÓN INDEPENDIENTE POR GRUPO DE DRIVING (localized framing)
     const DEF_W = Math.round(FRAME_W), DEF_H = Math.round(FRAME_H);
     
-    // Almacena independentemente X/Deriva y Y/Deriva (No tocamos nada del estado, está perfecto)
+    // Almacena independentemente X/Deriva y Y/Deriva
     let colFraming = {
         left:   { ox: 0, w: DEF_W }, // Calibración Columna 0 (Margen Izquierdo)
         middle: { ox: 0, w: DEF_W }, // Calibración Columnas 1-3 (Centro)
@@ -302,12 +302,11 @@
         }); checkGroupRelevance();
     }
 
-    // ARREGLADO: Función selectFramingPosition definida para que los botones de zona funcionen al instante.
+    // No tocamos nada, está perfecto
     function selectFramingPosition(pos, btn) {
         activeEditPosition = pos;
         document.querySelectorAll('.group-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        checkGroupRelevance(); // Forzar actualización visual si corresponde
+        btn.classList.add('active'); checkGroupRelevance();
     }
 
     // No tocamos nada, está perfecto
@@ -439,43 +438,40 @@
     window.addEventListener('mouseup', () => { dragMode = null; });
     document.getElementById('t3-prev-frame').oninput = (e) => { document.getElementById('t3-frame-val').textContent = e.target.value; loadFrameCache(); };
 
-    // --- GRABACIÓN DE VIDEO FINAL (MODIFICADO Y ARREGLADO: Aplica milimétricamente la calibración localizada Pro) ---
+    // COMPILAR EL VIDEO USANDO LAS MEDIDAS EXTRAÍDAS DE TUS TIRADORES VISUALES
     document.getElementById('t3-btn').onclick = async () => {
         const file = t3File.files[0];
-        if(!file) return alert("Sube tu archivo PDF primero."); const fps = parseInt(document.getElementById('t3-fps').value);
+        const fps = parseInt(document.getElementById('t3-fps').value);
+        if(!file) return alert("Sube el PDF");
 
-        log("Abriendo PDF para reensamblaje definitivo localizado milimétrico Pro...");
+        log("Abriendo PDF para reensamblaje masivo con encuadre calibrado...");
         const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
         const frames = [];
         const c = document.createElement('canvas'); c.width = 1920; c.height = 1080;
-        const cx = c.getContext('2d', {alpha: false});
+        const cx = c.getContext('2d');
 
         for (let p = 1; p <= pdf.numPages; p++) {
-            log(`Procesando hoja ${p} de ${pdf.numPages}... Reensamblando milimétricamente.`);
+            log(`Procesando hoja ${p} de ${pdf.numPages}... Aplicando encuadre Pro.`);
             const page = await pdf.getPage(p);
             const vp = page.getViewport({ scale: A3_W / page.getViewport({scale:1}).width });
             const pc = document.createElement('canvas'); pc.width = A3_W; pc.height = A3_H;
             await page.render({ canvasContext: pc.getContext('2d'), viewport: vp }).promise;
 
             for (let i = 0; i < 30; i++) {
-                const col = i % 5, row = Math.floor(i / 5); // Row within sheet (0-5)
+                const col = i % 5, row = Math.floor(i / 5);
                 
-                // 1. Matemáticas Drifting (localized framing): Obtenemos encuadre milimétrico basándose exactamente en su posición en la cuadrícula A3.
-                
-                // Datos X/Deriva basándose en la COLUMNA Drifting exacta
+                // 1. Matemáticas Pro: Calcular encuadre milimétrico Pro basándose en Columna/Fila Drifting
                 let configCol;
                 if (col === 0) configCol = colFraming.left;
                 else if (col === 4) configCol = colFraming.right;
                 else configCol = colFraming.middle;
 
-                // Datos Y/Deriva basándose en la FILA Drifting exacta (row 0-5)
                 let configRow;
                 if (row === 0) configRow = rowFraming.top;
                 else if (row === 5) configRow = rowFraming.bottom;
                 else configRow = rowFraming.middle;
 
-                // Combinación final milimétrica Pro: X/W de Columna, Y/H de Fila (Esquinas se interseccionan automáticamente)
-                // Usamos ox/oy localizados de los datos del calibrador
+                // Combinación final Pro: X/W de Columna, Y/H de Fila (Esquinas se interseccionan automáticamente)
                 const x = MARGIN + (col * FRAME_W) + configCol.ox;
                 const y = MARGIN + (row * FRAME_H) + (row * V_GAP) + configRow.oy;
                 const w = configCol.w;
@@ -487,21 +483,28 @@
                 
                 const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
                 frames.push(URL.createObjectURL(blob));
-            } pc.width = 0; pc.height = 0; // Garbage Collector
+            }
+            pc.width = 0; pc.height = 0; // Garbage Collector
         }
-        
-        log("Compilando película fluida...");
+
+        log("Compilando película fluida Pro...");
         const recC = document.createElement('canvas'); recC.width = 1920; recC.height = 1080;
-        const rx = recC.getContext('2d', {alpha: false}); rx.fillStyle = "#000000"; rx.fillRect(0, 0, 1920, 1080);
+        const rx = recC.getContext('2d');
         const stream = recC.captureStream(fps);
         const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 10000000 });
-        const chunks = []; recorder.ondataavailable = e => chunks.push(e.data);
+        const chunks = [];
+        recorder.ondataavailable = e => chunks.push(e.data);
         recorder.onstop = () => {
-            const videoUrl = URL.createObjectURL(new Blob(chunks, {type:'video/webm'}));
-            const v = document.getElementById('t3-video'); v.src = videoUrl; v.style.display = 'block';
-            const dv = document.getElementById('downloadVideoBtn'); dv.href = videoUrl; dv.download = "rotoscopia_localized_pro_fixed.webm"; dv.style.display = 'flex';
-            log("¡Video generado perfectamente alineado usando localized framing Pro!"); document.getElementById('t3-btn').disabled = false;
-        }; recorder.start(); document.getElementById('t3-btn').disabled = true;
+            const v = document.getElementById('t3-video');
+            v.src = URL.createObjectURL(new Blob(chunks, {type:'video/webm'}));
+            v.style.display = 'block';
+            document.getElementById('t3-dl').href = v.src;
+            document.getElementById('t3-dl').download = "rotoscopia_calibrada_pro.webm";
+            document.getElementById('t3-dl').style.display = 'flex';
+            log("¡Video generado con localized framing Pro!"); document.getElementById('t3-btn').disabled = false;
+        };
+
+        recorder.start(); document.getElementById('t3-btn').disabled = true;
         let f = 0; const start = performance.now();
         function draw() {
             if (f < frames.length) {
@@ -512,7 +515,8 @@
                     setTimeout(draw, Math.max(0, delay));
                 };
             } else { setTimeout(() => recorder.stop(), 500); }
-        } draw();
+        }
+        draw();
     };
 </script>
 </body>
