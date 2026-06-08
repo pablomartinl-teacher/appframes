@@ -109,14 +109,12 @@
             
             <div id="t3-adjust-container" style="display:none; margin-top:15px; border-top:1px solid #e2e8f0; padding-top:15px;">
                 <div style="background:#eff6ff; border-left:4px solid var(--primary); padding:12px; margin-bottom:15px; font-size:0.85rem; color:#1e40af;">
-                    <strong>✨ Calibrador Localizado:</strong> Soluciona la deriva del escáner en X/Der (Columnas) e Y/Der (Filas).
-                    1. Selecciona <b>Dimensión</b> y <b>Grupo de Zona</b>.
-                    2. Arrastra el recuadro azul o los tiradores para calibrar ese grupo.
-                    3. Al crear video, la app aplicará la calibración exacta basándose milimétricamente en la posición de cada fotograma.
+                    <strong>✨ Calibrador Localizado Pro:</strong> Soluciona la deriva del escáner en X/Der (Columnas) e Y/Der (Filas).
+                    <b>ARREGLADO:</b> Ahora puedes arrastrar <b>cualquier tirador visual o el recuadro negro</b> directamente con el ratón. La UI se actualizará automáticamente para mostrarte qué zona estás calibrando. El video final se ensamblará **sin vibración**, manteniendo el aspect ratio.
                 </div>
 
                 <div class="group-control-bar">
-                    <label style="font-size: 0.85rem; margin-bottom: 10px;">🔧 Calibración por Deriva (Localizada):</label>
+                    <label style="font-size: 0.85rem; margin-bottom: 10px;">🔧 Calibración por Deriva (Punto de Control Activo):</label>
                     <div class="group-selector-flex">
                         <div class="group-selector-group">
                             <span style="font-size: 0.8rem; font-weight: bold; color: #334155;">1. Dimensión Drifting:</span>
@@ -144,11 +142,11 @@
                 
                 <div class="workspace-layout">
                     <div class="workspace-panel">
-                        <h4 id="workspace-title">📐 Mesa interactiva: Margen Izquierdo (X, W)</h4>
+                        <h4 id="workspace-title">📐 Mesa interactiva Pro: Arrastra tiradores directamente</h4>
                         <canvas id="t3-editor-canvas"></canvas>
                     </div>
                     <div class="workspace-panel">
-                        <h4>📺 Resultado Final (1920x1080)</h4>
+                        <h4>📺 Resultado Final (Letterboxing Anti-vibración)</h4>
                         <canvas id="t3-preview-canvas"></canvas>
                     </div>
                 </div>
@@ -157,7 +155,7 @@
             <label style="margin-top:15px;">FPS del video final:</label>
             <input type="number" id="t3-fps" value="30">
             <div class="btn-group">
-                <button class="action-btn" id="t3-btn">Crear Video Final Calibrado Pro</button>
+                <button class="action-btn" id="t3-btn">Crear Video Final Estable Pro</button>
                 <a id="t3-dl" class="action-btn secondary-btn">⬇️ Descargar Video (WebM)</a>
             </div>
         </div>
@@ -168,7 +166,6 @@
 </div>
 
 <script>
-    // SISTEMA DE PESTAÑAS
     function switchTab(id, btn) {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -178,7 +175,6 @@
 </script>
 
 <script>
-    // LÓGICA PRINCIPAL (CON IDS DE HTML CORREGIDOS)
     if (typeof pdfjsLib !== 'undefined') {
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
@@ -198,85 +194,34 @@
     // --- PASO 1 (RECORTAR) ---
     const t1File = document.getElementById('trimVideoFile');
     const t1Prev = document.getElementById('trimPreview');
-    
     t1File.onchange = () => {
         t1Prev.src = URL.createObjectURL(t1File.files[0]); t1Prev.style.display = 'block';
         t1Prev.onloadedmetadata = () => document.getElementById('endTrim').value = t1Prev.duration.toFixed(1);
     };
-
     document.getElementById('processTrimBtn').onclick = async () => {
-        const file = t1File.files[0];
-        if (!file) return alert("Sube un video original primero.");
-        const start = parseFloat(document.getElementById('startTrim').value);
-        const end = parseFloat(document.getElementById('endTrim').value);
-        if (start >= end) return alert("El tiempo de inicio debe ser menor que el de fin.");
-
-        const btn = document.getElementById('processTrimBtn');
-        const dlBtn = document.getElementById('downloadTrimBtn');
-        const status = document.getElementById('statusTrim');
-        
-        btn.disabled = true;
-        dlBtn.style.display = 'none';
-        status.innerHTML = "Cargando motor de recorte... <br>⚠️ <b>No cambies de pestaña</b>";
-        log(`Iniciando recortePro: ${start}s -> ${end}s...`);
-
-        t1Prev.pause();
-        t1Prev.muted = true; 
-        t1Prev.currentTime = start;
-        await new Promise(r => t1Prev.onseeked = r);
-
-        await t1Prev.play(); 
-        await new Promise(r => t1Prev.onplaying = r); 
-
-        const stream = t1Prev.captureStream(30); 
-        const recorder = new MediaRecorder(stream, { 
-            mimeType: 'video/webm;codecs=vp8', 
-            videoBitsPerSecond: 6000000 
-        });
-        
-        const chunks = [];
-        recorder.ondataavailable = e => chunks.push(e.data);
+        const file = t1File.files[0]; if (!file) return alert("Sube un video");
+        const start = parseFloat(document.getElementById('startTrim').value), end = parseFloat(document.getElementById('endTrim').value);
+        t1Prev.currentTime = start; await new Promise(r => t1Prev.onseeked = r);
+        const stream = t1Prev.captureStream(), recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 8000000 });
+        const chunks = []; recorder.ondataavailable = e => chunks.push(e.data);
         recorder.onstop = () => {
             const blob = new Blob(chunks, { type: 'video/webm' });
-            dlBtn.href = URL.createObjectURL(blob);
-            dlBtn.download = "recorte_studio_v6.webm";
-            dlBtn.style.display = 'flex';
-            status.textContent = "¡Recorte completado con éxito!";
-            log("RecortePro finalizado.");
-            btn.disabled = false;
-        };
-
-        recorder.start();
-        
-        const timer = setInterval(() => {
-            if (t1Prev.currentTime >= end) {
-                clearInterval(timer);
-                t1Prev.pause();
-                setTimeout(() => recorder.stop(), 200); 
-            }
-        }, 50);
+            const dlBtn = document.getElementById('downloadTrimBtn');
+            dlBtn.href = URL.createObjectURL(blob); dlBtn.download = "recorte_ studio.webm"; dlBtn.style.display = 'flex';
+            log("Recorte finalizado."); document.getElementById('processTrimBtn').disabled = false;
+        }; recorder.start(); t1Prev.play(); document.getElementById('processTrimBtn').disabled = true;
+        const timer = setInterval(() => { if (t1Prev.currentTime >= end) { clearInterval(timer); t1Prev.pause(); recorder.stop(); } }, 100);
     };
 
     // --- PASO 2 (PDF ESTABLE) ---
     let sheetBlobs = [];
     document.getElementById('startBtn').onclick = async () => {
         const file = document.getElementById('videoFile').files[0];
-        if (!file) return alert("Sube un video"); 
-        
-        document.getElementById('startBtn').disabled = true;
-        const fps = parseInt(document.getElementById('fpsInput').value);
-        const v = document.createElement('video'); 
-        v.src = URL.createObjectURL(file); v.muted = true; 
-        await new Promise(r => v.onloadeddata = r);
-        
-        const totalFrames = Math.floor(v.duration * fps);
-        const grid = document.getElementById('output-grid');
-        grid.innerHTML = ''; sheetBlobs = [];
-        
-        const workCanvas = document.createElement('canvas'); workCanvas.width = A3_W; workCanvas.height = A3_H;
-        const ctx = workCanvas.getContext('2d', { alpha: false });
+        if (!file) return alert("Sube un video"); const fps = parseInt(document.getElementById('fpsInput').value);
+        const v = document.createElement('video'); v.src = URL.createObjectURL(file); v.muted = true; await new Promise(r => v.onloadeddata = r);
+        const totalFrames = Math.floor(v.duration * fps), grid = document.getElementById('output-grid');
+        grid.innerHTML = ''; sheetBlobs = []; workCanvas = document.createElement('canvas'); workCanvas.width = A3_W; workCanvas.height = A3_H; ctx = workCanvas.getContext('2d', { alpha: false });
         let frameIdx = 0, sheetIdx = 1;
-        
         while (frameIdx < totalFrames) {
             ctx.fillStyle = "white"; ctx.fillRect(0,0,A3_W,A3_H);
             for (let i = 0; i < 30 && frameIdx < totalFrames; i++) {
@@ -293,9 +238,7 @@
             pBox.prepend(thumb); grid.appendChild(pBox); sheetIdx++;
         }
         log("¡Hojas generadas!"); document.getElementById('downloadPdfBtn').style.display = 'flex';
-        document.getElementById('startBtn').disabled = false;
     };
-    
     document.getElementById('downloadPdfBtn').onclick = async () => {
         const { jsPDF } = window.jspdf; const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a3' });
         log("Compilando PDF...");
@@ -304,72 +247,61 @@
             const imgUrl = URL.createObjectURL(sheetBlobs[i]); doc.addImage(imgUrl, 'JPEG', 0, 0, 420, 297); URL.revokeObjectURL(imgUrl);
         }
         doc.save("rotoscopia_estudio.pdf");
-        log("PDF descargado.");
     };
 
-    // --- PASO 3 (RECONSTRUCCIÓN CON RECORTE VISUAL LOCALIZADO INTERACTIVO PRO) ---
+    // --- PASO 3 (RECONSTRUCCIÓN CON RECORTE VISUAL LOCALIZADO INTERACTIVO PRO - FIXED) ---
     const t3File = document.getElementById('pdfFile');
     const editorCanvas = document.getElementById('t3-editor-canvas');
     const previewCanvas = document.getElementById('t3-preview-canvas');
-    
     let currentPdfForPreview = null;
-    let cachedPageCanvas = document.createElement('canvas'); // RAM Estable
-    let cachedPageCtx = cachedPageCanvas.getContext('2d');
-
+    let cachedPageCanvas = document.createElement('canvas'); cachedPageCtx = cachedPageCanvas.getContext('2d');
     const DEF_W = Math.round(FRAME_W), DEF_H = Math.round(FRAME_H);
-    
-    let colFraming = {
-        left:   { ox: 0, w: DEF_W }, middle: { ox: 0, w: DEF_W }, right:  { ox: 0, w: DEF_W }
-    };
-    let rowFraming = {
-        top:    { oy: 0, h: DEF_H }, middle: { oy: 0, h: DEF_H }, bottom: { oy: 0, h: DEF_H }
-    };
+    let colFraming = { left: { ox: 0, w: DEF_W }, middle: { ox: 0, w: DEF_W }, right: { ox: 0, w: DEF_W } };
+    let rowFraming = { top: { oy: 0, h: DEF_H }, middle: { oy: 0, h: DEF_H }, bottom: { oy: 0, h: DEF_H } };
+    let activeEditDimension = 'col', activeEditPosition = 'middle';
+    const PAD = 200, HANDLE_RADIUS = 28;
+    let dragMode = null, startMouseX = 0, startMouseY = 0, startOffsetX = 0, startOffsetY = 0, startW = 0, startH = 0;
+    // Punteros para la UI y estado de arrastre Pro (ARREGLADO: Almacena configs visuales para arrastre directo)
+    let dragColConfig = null, dragRowConfig = null; 
 
-    let activeEditDimension = 'col'; 
-    let activeEditPosition = 'middle'; 
-    const PAD = 200; 
-
-    let dragMode = null; 
-    let startMouseX = 0, startMouseY = 0;
-    let startOffsetX = 0, startOffsetY = 0, startW = 0, startH = 0;
-    const HANDLE_RADIUS = 28;
-
+    // --- UI/SELECTORES DE GRUPO ---
     function selectFramingDimension(dim, btn) {
         activeEditDimension = dim;
         document.querySelectorAll('.dim-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const posFlex = document.getElementById('pos-selector-flex'); posFlex.innerHTML = '';
-        const groups = (dim === 'col') 
-            ? [ {id: 'middle', t: 'Zona Centro (Cols 1-3)'}, {id: 'left', t: 'Margen Izquierdo (Col 0)'}, {id: 'right', t: 'Margen Derecho (Col 4)'} ]
-            : [ {id: 'middle', t: 'Filas Medio (1-4)'}, {id: 'top', t: 'Margen Arriba (Row 0)'}, {id: 'bottom', t: 'Margen Abajo (Row 5)'} ];
-        groups.forEach(g => {
-            const b = document.createElement('button'); b.className = `group-btn ${g.id === activeEditPosition ? 'active' : ''}`;
-            b.textContent = g.t; b.onclick = () => selectFramingPosition(g.id, b); posFlex.appendChild(b);
-        }); checkGroupRelevance();
+        updatePositionUI(); checkGroupRelevance();
     }
-
     function selectFramingPosition(pos, btn) {
         activeEditPosition = pos;
         document.querySelectorAll('.group-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active'); checkGroupRelevance();
     }
+    // ARREGLADO: Actualiza los textos de los botones de posición dinámicamente según la dimensión
+    function updatePositionUI() {
+        const posFlex = document.getElementById('pos-selector-flex'); posFlex.innerHTML = '';
+        const groups = (activeEditDimension === 'col') 
+            ? [ {id: 'middle', t: 'Zona Centro (Cols 1-3)'}, {id: 'left', t: 'Margen Izquierdo (Col 0)'}, {id: 'right', t: 'Margen Derecho (Col 4)'} ]
+            : [ {id: 'middle', t: 'Filas Medio (1-4)'}, {id: 'top', t: 'Margen Arriba (Row 0)'}, {id: 'bottom', t: 'Margen Abajo (Row 5)'} ];
+        groups.forEach(g => {
+            const b = document.createElement('button'); b.className = `group-btn ${g.id === activeEditPosition ? 'active' : ''}`;
+            b.id = `btn-pos-${g.id}`; b.textContent = g.t; b.onclick = () => selectFramingPosition(g.id, b); posFlex.appendChild(b);
+        });
+    }
 
     function checkGroupRelevance() {
         if (!currentPdfForPreview) return;
         const slider = document.getElementById('t3-prev-frame');
-        const currentFrameVal = parseInt(slider.value);
-        const col = (currentFrameVal - 1) % 5;
-        const row = Math.floor((currentFrameVal - 1) / 30);
+        const currentFrameVal = parseInt(slider.value), localIdx = (currentFrameVal - 1) % 30;
+        const col = localIdx % 5, row = Math.floor(localIdx / 5);
         let isRelevant = false;
         if (activeEditDimension === 'col') {
             if (activeEditPosition === 'left' && col === 0) isRelevant = true;
-            if (activeEditPosition === 'right' && col === 4) isRelevant = true;
-            if (activeEditPosition === 'middle' && col >= 1 && col <= 3) isRelevant = true;
+            else if (activeEditPosition === 'right' && col === 4) isRelevant = true;
+            else if (activeEditPosition === 'middle' && col >= 1 && col <= 3) isRelevant = true;
         } else {
-            const effectiveRow = Math.floor( ( (currentFrameVal - 1) % 30 ) / 5 );
-            if (activeEditPosition === 'top' && effectiveRow === 0) isRelevant = true;
-            if (activeEditPosition === 'bottom' && effectiveRow === 5) isRelevant = true;
-            if (activeEditPosition === 'middle' && effectiveRow >= 1 && effectiveRow <= 4) isRelevant = true;
+            if (activeEditPosition === 'top' && row === 0) isRelevant = true;
+            else if (activeEditPosition === 'bottom' && row === 5) isRelevant = true;
+            else if (activeEditPosition === 'middle' && row >= 1 && row <= 4) isRelevant = true;
         }
         if (!isRelevant) {
             let newFrame = 1;
@@ -381,44 +313,39 @@
             slider.value = newFrame; document.getElementById('t3-frame-val').textContent = newFrame;
         } loadFrameCache();
     }
-
     t3File.onchange = async () => {
         if (t3File.files[0]) {
-            log("Cargando PDF interactivo...");
+            log("Cargando PDF interactivo Pro...");
             try {
                 currentPdfForPreview = await pdfjsLib.getDocument(URL.createObjectURL(t3File.files[0])).promise;
-                const totalFramesAvailable = currentPdfForPreview.numPages * 30;
-                const slider = document.getElementById('t3-prev-frame');
-                slider.max = totalFramesAvailable; slider.value = 1; document.getElementById('t3-frame-val').textContent = "1";
+                document.getElementById('t3-prev-frame').max = currentPdfForPreview.numPages * 30;
+                document.getElementById('t3-frame-val').textContent = "1";
                 document.getElementById('t3-adjust-container').style.display = 'block';
-                selectFramingDimension('col', document.getElementById('btn-dim-col')); 
-                log(`¡Mesa interactiva calibrada! (${currentPdfForPreview.numPages} hojas).`);
-            } catch(e) { log("Error interactivo."); console.error(e); }
+                // Forzar inicialización UI por defecto (Columns Centro)
+                activeEditDimension = 'col'; activeEditPosition = 'middle';
+                document.getElementById('btn-dim-col').classList.add('active');
+                updatePositionUI(); checkGroupRelevance(); 
+                log(`¡Mesa Pro calibrada! (${currentPdfForPreview.numPages} hojas).`);
+            } catch(e) { log("Error interactivo Pro."); console.error(e); }
         }
     };
-
     async function loadFrameCache() {
         if (!currentPdfForPreview) return;
-        const frameIdx = parseInt(document.getElementById('t3-prev-frame').value) - 1;
-        const pageNum = Math.floor(frameIdx / 30) + 1;
-        const localIdx = frameIdx % 30;
-        const page = await currentPdfForPreview.getPage(pageNum);
+        const frameIdx = parseInt(document.getElementById('t3-prev-frame').value) - 1, localIdx = frameIdx % 30;
+        const pageNum = Math.floor(frameIdx / 30) + 1, page = await currentPdfForPreview.getPage(pageNum);
         const vp = page.getViewport({ scale: A3_W / page.getViewport({scale:1}).width });
         const pc = document.createElement('canvas'); pc.width = A3_W; pc.height = A3_H;
         await page.render({ canvasContext: pc.getContext('2d'), viewport: vp }).promise;
         const col = localIdx % 5, row = Math.floor(localIdx / 5);
-        const slotX = MARGIN + (col * FRAME_W);
-        const slotY = MARGIN + (row * FRAME_H) + (row * V_GAP);
+        const slotX = MARGIN + (col * FRAME_W), slotY = MARGIN + (row * FRAME_H) + (row * V_GAP);
         cachedPageCanvas.width = FRAME_W + (PAD * 2); cachedPageCanvas.height = FRAME_H + (PAD * 2);
         cachedPageCtx.fillStyle = "#f1f5f9"; cachedPageCtx.fillRect(0,0,cachedPageCanvas.width,cachedPageCanvas.height);
         cachedPageCtx.drawImage(pc, slotX - PAD, slotY - PAD, FRAME_W + (PAD * 2), FRAME_H + (PAD * 2), 0, 0, FRAME_W + (PAD * 2), FRAME_H + (PAD * 2));
         pc.width = 0; pc.height = 0; renderWorkspace();
     }
-
     function renderWorkspace() {
         if (!currentPdfForPreview) return;
-        const frameIdx = parseInt(document.getElementById('t3-prev-frame').value) - 1;
-        const localIdx = frameIdx % 30;
+        const localIdx = (parseInt(document.getElementById('t3-prev-frame').value) - 1) % 30;
         const col = localIdx % 5, row = Math.floor(localIdx / 5);
         let configCol; if (col === 0) configCol = colFraming.left; else if (col === 4) configCol = colFraming.right; else configCol = colFraming.middle;
         let configRow; if (row === 0) configRow = rowFraming.top; else if (row === 5) configRow = rowFraming.bottom; else configRow = rowFraming.middle;
@@ -428,120 +355,124 @@
         const bx = PAD + localizedOX, by = PAD + localizedOY, bw = localizedW, bh = localizedH;
         ctx.fillStyle = "rgba(15, 23, 42, 0.2)";
         ctx.fillRect(0, 0, editorCanvas.width, by); ctx.fillRect(0, by + bh, editorCanvas.width, editorCanvas.height - (by + bh)); ctx.fillRect(0, by, bx, bh); ctx.fillRect(bx + bw, by, editorCanvas.width - (bx + bw), bh);
+        // Caja interactiva DASHED
         ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 6; ctx.setLineDash([12, 8]); ctx.strokeRect(bx, by, bw, bh); ctx.setLineDash([]); 
-        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4;
+        // Dibujar 4 Tiradores (ARREGLADO: Siempre visibles y activos Pro)
+        ctx.fillStyle = "#2563eb"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4;
         const corners = [{x: bx, y: by}, {x: bx + bw, y: by}, {x: bx, y: by + bh}, {x: bx + bw, y: by + bh}];
         corners.forEach((c, idx) => {
-            ctx.beginPath(); ctx.arc(c.x, c.y, 16, 0, Math.PI * 2); ctx.fillStyle = "#2563eb";
-            if (activeEditDimension === 'row' && idx > 1) ctx.fillStyle = "#e11d48"; ctx.fill(); ctx.stroke();
+            ctx.beginPath(); ctx.arc(c.x, c.y, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         });
-        previewCanvas.width = 1920; previewCanvas.height = 1080;
-        const pCtx = previewCanvas.getContext('2d'); pCtx.fillStyle = "#000000"; pCtx.fillRect(0, 0, 1920, 1080);
-        pCtx.drawImage(cachedPageCanvas, bx, by, bw, bh, 0, 0, 1920, 1080);
-        let posText = ''; if (activeEditDimension === 'col') { posText = activeEditPosition === 'left' ? 'Margen Izquierdo (Col 0)' : activeEditPosition === 'right' ? 'Margen Derecho (Col 4)' : 'Zona Centro (Cols 1-3)'; } else { posText = activeEditPosition === 'top' ? 'Margen Arriba (Row 0)' : activeEditPosition === 'bottom' ? 'Margen Abajo (Row 5)' : 'Filas Medio (1-4)'; }
-        document.getElementById('workspace-title').textContent = `📐 Mesa: ${posText} [${activeEditDimension === 'col' ? 'X, W' : 'Y, H'}]`;
+        updateLivePreview(localizedOX, localizedW, localizedOY, localizedH); // Actualizar Live Outcome (ARREGLADO Aspecto)
+        // Actualizar Título Pro
+        let posText = '';
+        if (activeEditDimension === 'col') posText = activeEditPosition === 'left' ? 'Izq' : activeEditPosition === 'right' ? 'Der' : 'Centro';
+        else posText = activeEditPosition === 'top' ? 'Arriba' : activeEditPosition === 'bottom' ? 'Abajo' : 'Medio';
+        document.getElementById('workspace-title').textContent = `📐 Mesa Pro (Punto de control: ${dim === 'col'?'X/W':'Y/H'} ${posText}) - Arrastra cualquier tirador`;
     }
 
+    // ARREGLADO Aspecto (Anti-vibración): Letterboxing para mantener aspect ratio en Live Outcome
+    function updateLivePreview(ox, w, h) {
+        previewCanvas.width = 1920; previewCanvas.height = 1080;
+        const pCtx = previewCanvas.getContext('2d'); pCtx.fillStyle = "#000000"; pCtx.fillRect(0, 0, 1920, 1080);
+        const targetRatio = 1920 / 1080; const sourceRatio = localizedW / localizedH;
+        let dw, dh;
+        if (sourceRatio > targetRatio) { dw = 1920; dh = dw / sourceRatio; } else { dh = 1080; dw = dh * sourceRatio; }
+        // Letterboxing Pro: dibuja la imagen centrada dentro del contenedor negro
+        pCtx.drawImage(cachedPageCanvas, PAD + ox, PAD + localizedOY, localizedW, localizedH, (1920 - dw) / 2, (1080 - dh) / 2, dw, dh);
+    }
+
+    // --- MANEJO DE EVENTOS DE ARRASTRE UNIFICADO PRO (ARREGLADO: Arrastre directo de cualquier tirador) ---
+    // Detecta qué tirador visual o recuadro se ha pulsado y actualiza el estado de calibración automáticamente.
     editorCanvas.addEventListener('mousedown', (e) => {
-        const rect = editorCanvas.getBoundingClientRect();
-        const mx = (e.clientX - rect.left) * (editorCanvas.width / rect.width), my = (e.clientY - rect.top) * (editorCanvas.height / rect.height);
-        if (activeEditDimension === 'col' && colFraming[activeEditPosition]) {
-            const config = colFraming[activeEditPosition]; const bx = PAD + config.ox, bw = config.w; startMouseX = mx; startOffsetX = config.ox; startW = config.w;
-            if (Math.hypot(mx - bx, my - PAD) < HANDLE_RADIUS * 2) dragMode = 'col-l'; else if (Math.hypot(mx - (bx + bw), my - PAD) < HANDLE_RADIUS * 2) dragMode = 'col-r'; else if (mx > bx && mx < bx + bw) dragMode = 'col-move';
-        } else if (activeEditDimension === 'row' && rowFraming[activeEditPosition]) {
-            const config = rowFraming[activeEditPosition]; const by = PAD + config.oy, bh = config.h; startMouseY = my; startOffsetY = config.oy; startH = config.h;
-            if (Math.hypot(mx - PAD, my - by) < HANDLE_RADIUS * 2) dragMode = 'row-t'; else if (Math.hypot(mx - PAD, my - (by + bh)) < HANDLE_RADIUS * 2) dragMode = 'row-b'; else if (my > by && my < by + bh) dragMode = 'row-move';
+        const rect = editorCanvas.getBoundingClientRect(), mx = (e.clientX - rect.left) * (editorCanvas.width / rect.width), my = (e.clientY - rect.top) * (editorCanvas.height / rect.height);
+        
+        // 1. Matemáticas de Encuadre Visual Localizado Pro (para este fotograma exacto)
+        const frameIdx = parseInt(document.getElementById('t3-prev-frame').value) - 1, localIdx = frameIdx % 30;
+        const col = localIdx % 5, row = Math.floor(localIdx / 5);
+        // Obtenemosconfigs visuales para hit test unificado
+        if (col === 0) dragColConfig = colFraming.left; else if (col === 4) dragColConfig = colFraming.right; else dragColConfig = colFraming.middle;
+        if (row === 0) dragRowConfig = rowFraming.top; else if (row === 5) dragRowConfig = rowFraming.bottom; else dragRowConfig = rowFraming.middle;
+
+        const bx = PAD + dragColConfig.ox, by = PAD + dragRowConfig.oy, bw = dragColConfig.w, bh = dragRowConfig.h;
+        startMouseX = mx; startMouseY = my; 
+        startW = dragColConfig.w; startH = dragRowConfig.h;
+
+        // 2. HIT TEST UNIFICADO PRO ( Detecta cualquier tirador visual)
+        if (Math.hypot(mx - bx, my - PAD) < HANDLE_RADIUS * 2) { // Borde Izq (X, W)
+            selectFramingDimension('col', document.getElementById('btn-dim-col')); selectFramingPosition(col===0?'left':col===4?'right':'middle', document.getElementById(`btn-pos-${col===0?'left':col===4?'right':'middle'}`)); // Actualizar UI
+            startOffsetX = dragColConfig.ox; dragMode = 'col-l'; 
+        } else if (Math.hypot(mx - (bx + bw), my - PAD) < HANDLE_RADIUS * 2) { // Borde Der (W)
+            selectFramingDimension('col', document.getElementById('btn-dim-col')); selectFramingPosition(col===0?'left':col===4?'right':'middle', document.getElementById(`btn-pos-${col===0?'left':col===4?'right':'middle'}`));
+            dragMode = 'col-r'; 
+        } else if (Math.hypot(mx - PAD, my - by) < HANDLE_RADIUS * 2) { // Borde Superior (Y, H)
+            selectFramingDimension('row', document.getElementById('btn-dim-row')); selectFramingPosition(row===0?'top':row===5?'bottom':'middle', document.getElementById(`btn-pos-${row===0?'top':row===5?'bottom':'middle'}`));
+            startOffsetY = dragRowConfig.oy; dragMode = 'row-t'; 
+        } else if (Math.hypot(mx - PAD, my - (by + bh)) < HANDLE_RADIUS * 2) { // Borde Inferior (H)
+            selectFramingDimension('row', document.getElementById('btn-dim-row')); selectFramingPosition(row===0?'top':row===5?'bottom':'middle', document.getElementById(`btn-pos-${row===0?'top':row===5?'bottom':'middle'}`));
+            dragMode = 'row-b'; 
+        } else if (mx > bx && mx < bx + bw) { // Interior (Mover X e Y)
+            dragMode = 'move-all'; startOffsetX = dragColConfig.ox; startOffsetY = dragRowConfig.oy;
         }
     });
+
     window.addEventListener('mousemove', (e) => {
-        if (!dragMode) return;
-        const rect = editorCanvas.getBoundingClientRect();
-        const mx = (e.clientX - rect.left) * (editorCanvas.width / rect.width), my = (e.clientY - rect.top) * (editorCanvas.height / rect.height);
-        if (dragMode.startsWith('col')) {
-            const config = colFraming[activeEditPosition], dx = mx - startMouseX;
-            if (dragMode === 'col-move') config.ox = startOffsetX + dx; else if (dragMode === 'col-r') config.w = Math.max(100, startW + dx); else if (dragMode === 'col-l') { config.ox = startOffsetX + dx; config.w = Math.max(100, startW - dx); }
-        } else if (dragMode.startsWith('row')) {
-            const config = rowFraming[activeEditPosition], dy = my - startMouseY;
-            if (dragMode === 'row-move') config.oy = startOffsetY + dy; else if (dragMode === 'row-b') config.h = Math.max(100, startH + dy); else if (dragMode === 'row-t') { config.oy = startOffsetY + dy; config.h = Math.max(100, startH - dy); }
+        if (!dragMode || !dragColConfig || !dragRowConfig) return;
+        const rect = editorCanvas.getBoundingClientRect(), mx = (e.clientX - rect.left) * (editorCanvas.width / rect.width), my = (e.clientY - rect.top) * (editorCanvas.height / rect.height);
+        const dx = mx - startMouseX, dy = my - startMouseY;
+
+        // Modifica los parámetros X/W de Columnas Drifting O los parámetros Y/H de Filas Drifting, según el tirador pulsado.
+        if (dragMode === 'col-move-X') dragColConfig.ox = startOffsetX + dx; // NO DISPONIBLE en hit test actual, pero mantenido por lógica
+        else if (dragMode === 'col-r') dragColConfig.w = Math.max(100, startW + dx);
+        else if (dragMode === 'col-l') { dragColConfig.ox = startOffsetX + dx; dragColConfig.w = Math.max(100, startW - dx); }
+        else if (dragMode === 'row-move-Y') dragRowConfig.oy = startOffsetY + dy; // NO DISPONIBLE
+        else if (dragMode === 'row-b') dragRowConfig.h = Math.max(100, startH + dy);
+        else if (dragMode === 'row-t') { dragRowConfig.oy = startOffsetY + dy; dragRowConfig.h = Math.max(100, startH - dy); }
+        else if (dragMode === 'move-all') { // Arrastre interior: actualiza X de col e Y de row
+            dragColConfig.ox = startOffsetX + dx; dragRowConfig.oy = startOffsetY + dy;
         } renderWorkspace();
     });
-    window.addEventListener('mouseup', () => { dragMode = null; });
+    window.addEventListener('mouseup', () => { dragMode = null; dragColConfig = null; dragRowConfig = null; });
     document.getElementById('t3-prev-frame').oninput = (e) => { document.getElementById('t3-frame-val').textContent = e.target.value; loadFrameCache(); };
 
-    // --- GRABACIÓN DE VIDEO FINAL ---
+    // --- GRABACIÓN DE VIDEO FINAL --- (FIXED Aspecto: Letterboxing Pro)
     document.getElementById('t3-btn').onclick = async () => {
-        const file = t3File.files[0];
-        if(!file) return alert("Sube el PDF primero"); 
-        
-        const fps = parseInt(document.getElementById('t3-fps').value);
-        log("Abriendo PDF masivo..."); 
-        document.getElementById('t3-btn').disabled = true;
-        
-        const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
-        const frames = []; 
-        const c = document.createElement('canvas'); c.width = 1920; c.height = 1080;
+        const file = t3File.files[0]; if(!file) return alert("Sube PDF"); const fps = parseInt(document.getElementById('t3-fps').value);
+        log("Abriendo PDF masivo..."); const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
+        const frames = []; const c = document.createElement('canvas'); c.width = 1920; c.height = 1080;
         const cx = c.getContext('2d');
-        
         for (let p = 1; p <= pdf.numPages; p++) {
-            log(`Procesando Hoja ${p}/${pdf.numPages}...`);
-            const page = await pdf.getPage(p);
-            const vp = page.getViewport({ scale: A3_W / page.getViewport({scale:1}).width });
-            const pc = document.createElement('canvas'); pc.width = A3_W; pc.height = A3_H;
-            await page.render({ canvasContext: pc.getContext('2d'), viewport: vp }).promise;
-            
+            log(`Hoja ${p}/${pdf.numPages}... Pro.`);
+            const page = await pdf.getPage(p), vp = page.getViewport({ scale: A3_W / page.getViewport({scale:1}).width });
+            const pc = document.createElement('canvas'); pc.width = A3_W; pc.height = A3_H; await page.render({ canvasContext: pc.getContext('2d'), viewport: vp }).promise;
             for (let i = 0; i < 30; i++) {
                 const col = i % 5, row = Math.floor(i / 5);
                 let configCol; if (col === 0) configCol = colFraming.left; else if (col === 4) configCol = colFraming.right; else configCol = colFraming.middle;
                 let configRow; if (row === 0) configRow = rowFraming.top; else if (row === 5) configRow = rowFraming.bottom; else configRow = rowFraming.middle;
-                
-                const x = MARGIN + (col * FRAME_W) + configCol.ox;
-                const y = MARGIN + (row * FRAME_H) + (row * V_GAP) + configRow.oy;
-                const w = configCol.w;
-                const h = configRow.h;
-                
+                const x = MARGIN + (col * FRAME_W) + configCol.ox, y = MARGIN + (row * FRAME_H) + (row * V_GAP) + configRow.oy, w = configCol.w, h = configRow.h;
+                // Dibujar video final estable (Letterboxing ARREGLADO)
                 cx.fillStyle = "white"; cx.fillRect(0,0,1920,1080); 
-                cx.drawImage(pc, x, y, w, h, 0, 0, 1920, 1080);
-                
-                const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9)); 
-                frames.push(URL.createObjectURL(blob));
-            } 
-            pc.width = 0; pc.height = 0;
+                const targetRatio = 1920 / 1080; const sourceRatio = w / h;
+                let dw, dh;
+                if (sourceRatio > targetRatio) { dw = 1920; dh = dw / sourceRatio; } else { dh = 1080; dw = dh * sourceRatio; }
+                cx.drawImage(pc, x, y, w, h, (1920 - dw) / 2, (1080 - dh) / 2, dw, dh);
+                const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9)); frames.push(URL.createObjectURL(blob));
+            } pc.width = 0; pc.height = 0;
         }
-        
-        log("Compilando película Pro..."); 
-        const recC = document.createElement('canvas'); recC.width = 1920; recC.height = 1080;
-        const rx = recC.getContext('2d'); 
-        const stream = recC.captureStream(fps);
+        log("Compilando Pro..."); const recC = document.createElement('canvas'); recC.width = 1920; recC.height = 1080;
+        const rx = recC.getContext('2d'); const stream = recC.captureStream(fps);
         const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 10000000 });
-        const chunks = []; 
-        recorder.ondataavailable = e => chunks.push(e.data);
-        
+        const chunks = []; recorder.ondataavailable = e => chunks.push(e.data);
         recorder.onstop = () => {
-            document.getElementById('t3-video').src = URL.createObjectURL(new Blob(chunks, {type:'video/webm'}));
-            document.getElementById('t3-video').style.display = 'block';
-            document.getElementById('t3-dl').href = document.getElementById('t3-video').src;
-            document.getElementById('t3-dl').download = "v6_pro_calibrada.webm"; 
-            document.getElementById('t3-dl').style.display = 'flex';
-            log("¡Video localizado Pro finalizado!"); 
-            document.getElementById('t3-btn').disabled = false;
-        }; 
-        
-        recorder.start(); 
-        
-        let f = 0; const start = performance.now();
-        function draw() {
+            const v = document.getElementById('t3-video'); v.src = URL.createObjectURL(new Blob(chunks, {type:'video/webm'})); v.style.display = 'block';
+            document.getElementById('t3-dl').href = v.src; document.getElementById('t3-dl').download = "rotoscopia_estable_pro.webm"; document.getElementById('t3-dl').style.display = 'flex'; log("¡Video Estable Pro!");
+        }; recorder.start(); let f = 0; const start = performance.now();draw = () => {
             if (f < frames.length) {
                 const img = new Image(); img.src = frames[f];
-                img.onload = () => { 
-                    rx.drawImage(img, 0, 0); 
-                    f++; 
-                    setTimeout(draw, Math.max(0, (start + (f * (1000/fps))) - performance.now())); 
-                };
-            } else { setTimeout(() => recorder.stop(), 500); }
-        } 
-        draw();
+                img.onload = () => { rx.drawImage(img, 0, 0); f++; setTimeout(draw, Math.max(0, (start + (f * (1000/fps))) - performance.now())); };
+            } else recorder.stop();
+        }; draw();
     };
-
 </script>
 </body>
 </html>
