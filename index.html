@@ -3,327 +3,492 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rotoscopia Web: Editor, PDF y Video</title>
+    <title>Rotoscopia Studio v6 - Calibrador Interactivo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     
     <style>
-        :root { --primary: #2563eb; --bg: #f8fafc; --text: #1e293b; --danger: #dc2626; --success: #059669; --tab-bg: #e2e8f0; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg); color: var(--text); padding: 2rem; max-width: 1000px; margin: 0 auto; }
-        h1 { text-align: center; color: var(--primary); margin-bottom: 0.5rem; }
+        :root { --primary: #2563eb; --bg: #f8fafc; --text: #1e293b; --danger: #e11d48; --success: #10b981; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { text-align: center; color: var(--primary); }
         
-        .tabs { display: flex; gap: 5px; margin-bottom: 1rem; flex-wrap: wrap; }
-        .tab-btn { flex: 1; min-width: 200px; background-color: var(--tab-bg); color: var(--text); border: none; padding: 1rem; border-radius: 8px 8px 0 0; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .tab-btn.active { background-color: white; color: var(--primary); box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.1); border-top: 4px solid var(--primary); }
-        .tab-content { display: none; background: white; padding: 2rem; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; background: #e2e8f0; padding: 5px; border-radius: 12px; }
+        .tab-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; background: transparent; color: #64748b; transition: 0.2s; }
+        .tab-btn.active { background: white; color: var(--primary); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        
+        .tab-content { display: none; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
         .tab-content.active { display: block; }
 
-        .control-group { margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
-        .row-group { display: flex; gap: 1rem; }
-        .row-group .control-group { flex: 1; }
-        label { font-weight: 600; }
-        input[type="file"], input[type="number"] { padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 1rem; width: 100%; box-sizing: border-box; }
-        .btn-container { display: flex; gap: 10px; }
-        button.action-btn, a.action-btn { flex: 1; background-color: var(--primary); color: white; border: none; padding: 1rem; border-radius: 6px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: opacity 0.2s; text-align: center; text-decoration: none; box-sizing: border-box; }
-        button.action-btn:hover, a.action-btn:hover { opacity: 0.9; }
-        button.action-btn:disabled { background-color: #94a3b8; cursor: not-allowed; }
-        #downloadPdfBtn, #downloadVideoBtn, #downloadTrimBtn { background-color: #7c3aed; display: none; }
-        .warning { color: var(--danger); background: #fef2f2; padding: 1rem; border-radius: 6px; font-size: 0.85rem; border: 1px solid #f87171; margin-bottom: 1rem; }
-        .info { color: #0f5132; background: #d1e7dd; border: 1px solid #badbcc; padding: 1rem; border-radius: 6px; font-size: 0.85rem; margin-bottom: 1rem; }
-        .status { text-align: center; font-weight: bold; margin-top: 1rem; color: var(--success); }
+        .card { border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; }
+        input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
         
-        #output { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-top: 2rem; }
-        .sheet-preview { background: #fff; border: 1px solid #ddd; padding: 5px; border-radius: 4px; text-align: center; }
-        canvas { width: 100%; height: auto; display: block; border: 1px solid #eee; }
-        .sheet-label { font-size: 0.8rem; color: #64748b; margin-top: 5px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
+        .btn { flex: 1; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; background: var(--primary); transition: 0.3s; text-align: center; text-decoration: none; }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-purple { background: #7c3aed; }
+
+        #status-log { background: #1e293b; color: #34d399; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9rem; margin-top: 20px; max-height: 150px; overflow-y: auto; }
         
-        #resultVideo, #trimPreview { width: 100%; max-width: 800px; margin: 1rem auto; display: none; border-radius: 8px; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.2); }
+        #output-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
+        .preview-box { border: 1px solid #ddd; padding: 5px; text-align: center; font-size: 0.8rem; background: #fff; }
+        .preview-box canvas { width: 100%; height: auto; }
+
+        video { width: 100%; border-radius: 8px; background: #000; margin-bottom: 10px; }
+
+        /* Estilos del área de trabajo interactiva de la pestaña 3 */
+        .workspace-layout { display: flex; flex-direction: column; gap: 20px; margin-top: 15px; }
+        @media(min-width: 768px) {
+            .workspace-layout { flex-direction: row; }
+        }
+        .workspace-panel { flex: 1; background: #f1f5f9; padding: 15px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: center; }
+        .workspace-panel canvas { width: 100%; height: auto; display: block; background: #fff; border-radius: 6px; border: 1px solid #94a3b8; }
+        .workspace-panel h4 { margin: 0 0 10px 0; color: #334155; font-size: 0.95rem; }
     </style>
 </head>
 <body>
 
-    <h1>Rotoscopia Web 🎬</h1>
-    <p style="text-align: center; margin-bottom: 2rem;">Pestañas: Recortar / Extraer (PDF) / Generar (Video)</p>
-    
+<div class="container">
+    <h1>Rotoscopia Studio 🎬</h1>
+
     <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('tab1', this)">1. Recortar Video ✂️</button>
-        <button class="tab-btn" onclick="switchTab('tab2', this)">2. Extraer a PDF 📄</button>
-        <button class="tab-btn" onclick="switchTab('tab3', this)">3. Generar Video 🎞️</button>
+        <button class="tab-btn active" onclick="switchTab('tab1', this)">1. Recortar</button>
+        <button class="tab-btn" onclick="switchTab('tab2', this)">2. PDF (A3)</button>
+        <button class="tab-btn" onclick="switchTab('tab3', this)">3. Crear Video</button>
     </div>
 
     <div id="tab1" class="tab-content active">
-        <div class="info"><strong>💡 Paso 1:</strong> Sube y recorta el video para trabajar solo con el fragmento necesario.</div>
-        <div class="control-group">
-            <label>Video original:</label>
-            <input type="file" id="trimVideoFile" accept="video/*">
+        <div class="card">
+            <label>Subir Video Original:</label>
+            <input type="file" id="t1-file" accept="video/*">
+            <video id="t1-preview" controls style="margin-top:10px; display:none;"></video>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <div><label>Inicio (s):</label><input type="number" id="t1-start" value="0"></div>
+                <div><label>Fin (s):</label><input type="number" id="t1-end" value="5"></div>
+            </div>
+            <div class="btn-group">
+                <button class="btn" id="t1-btn">Recortar Fragmento</button>
+                <a id="t1-dl" class="btn btn-purple" style="display:none;">Descargar Recorte</a>
+            </div>
         </div>
-        <video id="trimPreview" controls></video>
-        <div class="row-group">
-            <div class="control-group"><label>Inicio (seg):</label><input type="number" id="startTrim" value="0" step="0.1"></div>
-            <div class="control-group"><label>Fin (seg):</label><input type="number" id="endTrim" value="0" step="0.1"></div>
-        </div>
-        <div class="btn-container">
-            <button id="processTrimBtn" class="action-btn">Procesar Recorte</button>
-            <a id="downloadTrimBtn" class="action-btn">⬇️ Descargar Recorte</a>
-        </div>
-        <div id="statusTrim" class="status"></div>
     </div>
 
     <div id="tab2" class="tab-content">
-        <div class="warning"><strong>⚠️ Corrección:</strong> Ahora la extracción es matemáticamente exacta al FPS indicado.</div>
-        <div class="control-group">
-            <label>Video a procesar:</label>
-            <input type="file" id="videoFile" accept="video/*">
+        <div class="card">
+            <label>Video Recortado:</label>
+            <input type="file" id="t2-file" accept="video/*">
+            <label style="margin-top:10px;">FPS (Fotogramas por segundo):</label>
+            <input type="number" id="t2-fps" value="30">
+            <div class="btn-group">
+                <button class="btn" id="t2-btn">Generar PDF de Hojas A3</button>
+                <button class="btn btn-purple" id="t2-pdf" style="display:none;">Descargar PDF</button>
+            </div>
         </div>
-        <div class="control-group">
-            <label>Fotogramas por segundo (FPS):</label>
-            <input type="number" id="fpsInput" value="30" min="1" max="60">
-        </div>
-        <div class="btn-container">
-            <button id="startBtn" class="action-btn">Generar Fotogramas</button>
-            <button id="downloadPdfBtn" class="action-btn">⬇️ Descargar PDF (A3)</button>
-        </div>
-        <div id="status1" class="status"></div>
-        <div id="output"></div>
+        <div id="output-grid"></div>
     </div>
 
     <div id="tab3" class="tab-content">
-        <div class="info"><strong>💡 Paso 3:</strong> Sube el PDF editado para reconstruir el video.</div>
-        <div class="control-group">
-            <label>PDF editado (A3):</label>
-            <input type="file" id="pdfFile" accept="application/pdf">
+        <div class="card">
+            <label>PDF con dibujos:</label>
+            <input type="file" id="t3-file" accept="application/pdf">
+            
+            <div id="t3-adjust-container" style="display:none; margin-top:15px; border-top:1px solid #e2e8f0; padding-top:15px;">
+                <div style="background:#eff6ff; border-left:4px solid var(--primary); padding:12px; margin-bottom:15px; font-size:0.85rem; color:#1e40af;">
+                    <strong>✨ Calibrador de Cuadrícula Visual:</strong> Arrastra el interior del recuadro azul para mover y centrar la captura. Arrastra los tiradores de las esquinas para cambiar el tamaño del recorte (Zoom) y esquivar bordes blancos del folio o capturas vecinas.
+                </div>
+
+                <label style="font-size:0.85rem; margin-bottom:5px;">Navegar por la secuencia de fotogramas para verificar alineación:</label>
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px;">
+                    <input type="range" id="t3-prev-frame" min="1" max="30" value="1" style="flex:1; cursor:pointer;">
+                    <span id="t3-frame-val" style="font-weight:bold; min-width:35px; text-align:right;">1</span>
+                </div>
+                
+                <div class="workspace-layout">
+                    <div class="workspace-panel">
+                        <h4>📐 1. Ajustar Tiradores y Recuadro</h4>
+                        <canvas id="t3-editor-canvas"></canvas>
+                    </div>
+                    <div class="workspace-panel">
+                        <h4>📺 2. Resultado Final (1920x1080)</h4>
+                        <canvas id="t3-preview-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <label style="margin-top:15px;">FPS del video final:</label>
+            <input type="number" id="t3-fps" value="30">
+            <div class="btn-group">
+                <button class="btn" id="t3-btn">Convertir PDF a Video</button>
+                <a id="t3-dl" class="btn btn-purple" style="display:none;">Descargar Video Final</a>
+            </div>
         </div>
-        <div class="control-group">
-            <label>FPS de salida:</label>
-            <input type="number" id="outFpsInput" value="30" min="1" max="60">
-        </div>
-        <div class="btn-container">
-            <button id="processPdfBtn" class="action-btn">Crear Video Final</button>
-            <a id="downloadVideoBtn" class="action-btn">⬇️ Descargar Video</a>
-        </div>
-        <div id="status2" class="status"></div>
-        <video id="resultVideo" controls></video>
+        <video id="t3-video" controls style="margin-top:15px; display:none;"></video>
     </div>
 
-    <script>
+    <div id="status-log">Consola: Esperando acciones...</div>
+</div>
+
+<script>
+    function switchTab(id, btn) {
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        btn.classList.add('active');
+    }
+</script>
+
+<script>
+    if (typeof pdfjsLib !== 'undefined') {
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
 
-        const A3_WIDTH = 4960;
-        const A3_HEIGHT = 3508;
-        const COLS = 5;
-        const ROWS = 6;
-        const FRAMES_PER_PAGE = 30;
-        const MARGIN = 60;
-        const FRAME_W = (A3_WIDTH - (MARGIN * 2)) / COLS;
-        const FRAME_H = FRAME_W * (1080 / 1920);
-        const VERTICAL_GAP = ((A3_HEIGHT - (MARGIN * 2)) - (ROWS * FRAME_H)) / (ROWS - 1);
+    const A3_W = 4960, A3_H = 3508;
+    const COLS = 5, ROWS = 6, MARGIN = 60;
+    const FRAME_W = (A3_W - (MARGIN * 2)) / COLS;
+    const FRAME_H = FRAME_W * (1080 / 1920);
+    const V_GAP = ((A3_H - (MARGIN * 2)) - (ROWS * FRAME_H)) / (ROWS - 1);
 
-        function switchTab(tabId, btn) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            btn.classList.add('active');
-        }
+    function log(msg) {
+        const logger = document.getElementById('status-log');
+        logger.innerHTML += `<br>> ${msg}`;
+        logger.scrollTop = logger.scrollHeight;
+    }
 
-        // --- LÓGICA PESTAÑA 1 --- (Sin cambios)
-        const trimVideoFile = document.getElementById('trimVideoFile');
-        const trimPreview = document.getElementById('trimPreview');
-        const startTrim = document.getElementById('startTrim');
-        const endTrim = document.getElementById('endTrim');
-        const processTrimBtn = document.getElementById('processTrimBtn');
-        const downloadTrimBtn = document.getElementById('downloadTrimBtn');
-        const statusTrim = document.getElementById('statusTrim');
+    // --- PASO 1 (RECORTAR) ---
+    const t1File = document.getElementById('t1-file');
+    const t1Prev = document.getElementById('t1-preview');
+    t1File.onchange = () => {
+        t1Prev.src = URL.createObjectURL(t1File.files[0]);
+        t1Prev.style.display = 'block';
+        t1Prev.onloadedmetadata = () => document.getElementById('t1-end').value = t1Prev.duration.toFixed(1);
+    };
 
-        trimVideoFile.addEventListener('change', () => {
-            if (trimVideoFile.files[0]) {
-                trimPreview.src = URL.createObjectURL(trimVideoFile.files[0]);
-                trimPreview.style.display = 'block';
-                trimPreview.onloadedmetadata = () => {
-                    startTrim.value = 0; endTrim.value = trimPreview.duration.toFixed(1);
-                };
+    document.getElementById('t1-btn').onclick = async () => {
+        const start = parseFloat(document.getElementById('t1-start').value);
+        const end = parseFloat(document.getElementById('t1-end').value);
+        log(`Iniciando recorte de ${start}s a ${end}s...`);
+        t1Prev.currentTime = start;
+        await new Promise(r => t1Prev.onseeked = r);
+        const stream = t1Prev.captureStream();
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 8000000 });
+        const chunks = [];
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = () => {
+            document.getElementById('t1-dl').href = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+            document.getElementById('t1-dl').download = "recorte.webm";
+            document.getElementById('t1-dl').style.display = 'flex';
+            log("Recorte finalizado.");
+        };
+        recorder.start(); t1Prev.play();
+        const timer = setInterval(() => {
+            if (t1Prev.currentTime >= end) { clearInterval(timer); t1Prev.pause(); recorder.stop(); }
+        }, 100);
+    };
+
+    // --- PASO 2 (PDF ESTABLE) ---
+    let sheetBlobs = [];
+    document.getElementById('t2-btn').onclick = async () => {
+        const file = document.getElementById('t2-file').files[0];
+        const fps = parseInt(document.getElementById('t2-fps').value);
+        if (!file) return alert("Sube un video");
+
+        log("Cargando motor de video...");
+        const v = document.createElement('video');
+        v.src = URL.createObjectURL(file); v.muted = true;
+        await new Promise(r => v.onloadeddata = r);
+
+        const totalFrames = Math.floor(v.duration * fps);
+        const grid = document.getElementById('output-grid');
+        grid.innerHTML = ''; sheetBlobs = [];
+
+        const workCanvas = document.createElement('canvas');
+        workCanvas.width = A3_W; workCanvas.height = A3_H;
+        const ctx = workCanvas.getContext('2d', { alpha: false });
+
+        let frameIdx = 0; let sheetIdx = 1;
+        while (frameIdx < totalFrames) {
+            ctx.fillStyle = "white"; ctx.fillRect(0,0,A3_W,A3_H);
+            for (let i = 0; i < 30 && frameIdx < totalFrames; i++) {
+                v.currentTime = frameIdx / fps;
+                await new Promise(r => {
+                    const h = () => { v.removeEventListener('seeked', h); r(); };
+                    v.addEventListener('seeked', h);
+                });
+                const col = i % 5, row = Math.floor(i / 5);
+                ctx.drawImage(v, MARGIN + (col * FRAME_W), MARGIN + (row * FRAME_H) + (row * V_GAP), FRAME_W, FRAME_H);
+                frameIdx++;
+                if (frameIdx % 10 === 0) log(`Procesando frame ${frameIdx}/${totalFrames}...`);
+                await new Promise(r => setTimeout(r, 0));
             }
-        });
-
-        processTrimBtn.addEventListener('click', async () => {
-            const start = parseFloat(startTrim.value), end = parseFloat(endTrim.value);
-            processTrimBtn.disabled = true;
-            statusTrim.innerHTML = "Recortando...";
-            trimPreview.currentTime = start;
-            await new Promise(r => trimPreview.onseeked = r);
-            const stream = trimPreview.captureStream();
-            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 8000000 });
-            const chunks = [];
-            recorder.ondataavailable = e => chunks.push(e.data);
-            recorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/webm' });
-                downloadTrimBtn.href = URL.createObjectURL(blob);
-                downloadTrimBtn.download = "recorte.webm";
-                downloadTrimBtn.style.display = 'block';
-                statusTrim.textContent = "¡Recorte listo!";
-                processTrimBtn.disabled = false;
-            };
-            recorder.start();
-            trimPreview.play();
-            const check = setInterval(() => {
-                if (trimPreview.currentTime >= end) {
-                    clearInterval(check); trimPreview.pause(); recorder.stop();
-                }
-            }, 50);
-        });
-
-        // =====================================================================
-        // LÓGICA PESTAÑA 2: EXTRAER A PDF (FIXED / ARREGLADA)
-        // =====================================================================
-        const videoFile = document.getElementById('videoFile');
-        const startBtn = document.getElementById('startBtn');
-        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
-        const statusDiv1 = document.getElementById('status1');
-        const outputDiv = document.getElementById('output');
-        let allSheets = []; 
-
-        async function seekVideo(video, time) {
-            return new Promise(resolve => {
-                const handler = () => { video.removeEventListener('seeked', handler); resolve(); };
-                video.addEventListener('seeked', handler);
-                video.currentTime = time;
-            });
+            const blob = await new Promise(r => workCanvas.toBlob(r, 'image/jpeg', 0.8));
+            sheetBlobs.push(blob);
+            const pBox = document.createElement('div'); pBox.className = 'preview-box'; pBox.innerHTML = `Hoja ${sheetIdx}`;
+            const thumb = document.createElement('img'); thumb.src = URL.createObjectURL(blob); thumb.style.width = "100%";
+            pBox.prepend(thumb); grid.appendChild(pBox);
+            sheetIdx++;
         }
+        log("¡Hojas generadas!"); document.getElementById('t2-pdf').style.display = 'flex';
+    };
 
-        function createNewSheet(sheetNumber) {
-            const canvas = document.createElement('canvas');
-            canvas.width = A3_WIDTH; canvas.height = A3_HEIGHT;
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, A3_WIDTH, A3_HEIGHT);
-            return { canvas, ctx, count: 0, sheetNumber };
+    document.getElementById('t2-pdf').onclick = async () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a3' });
+        log("Compilando PDF...");
+        for (let i = 0; i < sheetBlobs.length; i++) {
+            if (i > 0) doc.addPage('a3', 'l');
+            const imgUrl = URL.createObjectURL(sheetBlobs[i]);
+            doc.addImage(imgUrl, 'JPEG', 0, 0, 420, 297);
+            URL.revokeObjectURL(imgUrl);
         }
+        doc.save("rotoscopia_estudio.pdf"); log("PDF descargado.");
+    };
 
-        startBtn.addEventListener('click', async () => {
-            if (!videoFile.files[0]) return alert("Sube un video");
-            const targetFPS = parseInt(document.getElementById('fpsInput').value);
-            
-            startBtn.disabled = true;
-            outputDiv.innerHTML = '';
-            allSheets = [];
-            statusDiv1.textContent = "Iniciando extracción...";
+    // --- PASO 3 (RECONSTRUCCIÓN CON RECORTE VISUAL CON TIRADORES) ---
+    const t3File = document.getElementById('t3-file');
+    const editorCanvas = document.getElementById('t3-editor-canvas');
+    const previewCanvas = document.getElementById('t3-preview-canvas');
+    
+    let currentPdfForPreview = null;
+    let cachedPageCanvas = document.createElement('canvas'); // Almacena el fragmento de la hoja actual para arrastrar rápido
+    let cachedPageCtx = cachedPageCanvas.getContext('2d');
 
-            const video = document.createElement('video');
-            video.src = URL.createObjectURL(videoFile.files[0]);
-            video.muted = true;
-            await new Promise(r => video.onloadedmetadata = r);
+    // Variables de control del Bounding Box de recorte (inicializados con la matemática base del A3)
+    let t3OffsetX = 0;
+    let t3OffsetY = 0;
+    let t3CustomW = Math.round(FRAME_W);
+    let t3CustomH = Math.round(FRAME_H);
 
-            const duration = video.duration;
-            // Cálculo exacto del total de fotogramas (Evita el frame extra del segundo final)
-            const totalFrames = Math.floor(duration * targetFPS);
-            
-            let currentSheet = createNewSheet(1);
-            let framesExtracted = 0;
+    // Padding de entorno: expandimos la zona de visión en 200px por lado para ver si el papel está desplazado fuera de la cuadrícula
+    const PAD = 200; 
 
-            for (let i = 0; i < totalFrames; i++) {
-                // Cálculo de tiempo basado en índice para evitar errores de precisión decimal
-                const time = i / targetFPS; 
+    // Estado del ratón interactivo
+    let dragMode = null; // null, 'move', 'tl', 'tr', 'bl', 'br'
+    let startMouseX = 0, startMouseY = 0;
+    let startOffsetX = 0, startOffsetY = 0;
+    let startW = 0, startH = 0;
+    const HANDLE_RADIUS = 28; // Sensibilidad del área del tirador en píxeles
+
+    t3File.onchange = async () => {
+        if (t3File.files[0]) {
+            log("Cargando PDF en la mesa de calibración...");
+            try {
+                currentPdfForPreview = await pdfjsLib.getDocument(URL.createObjectURL(t3File.files[0])).promise;
+                const totalFramesAvailable = currentPdfForPreview.numPages * 30;
                 
-                await seekVideo(video, time);
-
-                const col = currentSheet.count % COLS;
-                const row = Math.floor(currentSheet.count / COLS);
-                const x = MARGIN + (col * FRAME_W);
-                const y = MARGIN + (row * FRAME_H) + (row * VERTICAL_GAP);
-
-                currentSheet.ctx.drawImage(video, x, y, FRAME_W, FRAME_H);
-                currentSheet.count++;
-                framesExtracted++;
-
-                statusDiv1.textContent = `Procesando: ${Math.floor((framesExtracted/totalFrames)*100)}% (${framesExtracted} de ${totalFrames})`;
-
-                if (currentSheet.count === FRAMES_PER_PAGE) {
-                    const div = document.createElement('div'); div.className = 'sheet-preview';
-                    div.innerHTML = `<div class="sheet-label">Hoja ${currentSheet.sheetNumber}</div>`;
-                    div.prepend(currentSheet.canvas);
-                    outputDiv.appendChild(div);
-                    allSheets.push(currentSheet);
-                    currentSheet = createNewSheet(currentSheet.sheetNumber + 1);
-                }
+                const slider = document.getElementById('t3-prev-frame');
+                slider.max = totalFramesAvailable; slider.value = 1;
+                document.getElementById('t3-frame-val').textContent = "1";
+                
+                document.getElementById('t3-adjust-container').style.display = 'block';
+                await loadFrameCache(); // Carga la imagen de fondo una única vez
+                log(`¡Mesa interactiva lista! Modifica los extremos del recuadro directamente en el panel izquierdo.`);
+            } catch(e) {
+                log("Error al inicializar la vista previa interactiva."); console.error(e);
             }
+        }
+    };
 
-            if (currentSheet.count > 0) {
-                const div = document.createElement('div'); div.className = 'sheet-preview';
-                div.innerHTML = `<div class="sheet-label">Hoja ${currentSheet.sheetNumber}</div>`;
-                div.prepend(currentSheet.canvas);
-                outputDiv.appendChild(div);
-                allSheets.push(currentSheet);
-            }
+    // Renderiza la hoja de PDF y extrae la matriz expandida de un fotograma hacia la memoria rápida (Caché)
+    async function loadFrameCache() {
+        if (!currentPdfForPreview) return;
+        const frameIdx = parseInt(document.getElementById('t3-prev-frame').value) - 1;
+        const pageNum = Math.floor(frameIdx / 30) + 1;
+        const localIdx = frameIdx % 30;
 
-            statusDiv1.textContent = "Extracción completa y exacta.";
-            startBtn.disabled = false;
-            downloadPdfBtn.style.display = 'block';
+        const page = await currentPdfForPreview.getPage(pageNum);
+        const vp = page.getViewport({ scale: A3_W / page.getViewport({scale:1}).width });
+        
+        const pc = document.createElement('canvas'); pc.width = A3_W; pc.height = A3_H;
+        await page.render({ canvasContext: pc.getContext('2d'), viewport: vp }).promise;
+
+        const col = localIdx % 5, row = Math.floor(localIdx / 5);
+        const slotX = MARGIN + (col * FRAME_W);
+        const slotY = MARGIN + (row * FRAME_H) + (row * V_GAP);
+
+        // Preparamos el canvas de caché expandido
+        cachedPageCanvas.width = FRAME_W + (PAD * 2);
+        cachedPageCanvas.height = FRAME_H + (PAD * 2);
+        cachedPageCtx.fillStyle = "#f1f5f9"; cachedPageCtx.fillRect(0,0,cachedPageCanvas.width,cachedPageCanvas.height);
+        
+        // Dibujamos el segmento de la hoja en la caché (incluyendo su entorno para ver el desfase del papel)
+        cachedPageCtx.drawImage(pc, slotX - PAD, slotY - PAD, FRAME_W + (PAD * 2), FRAME_H + (PAD * 2), 0, 0, FRAME_W + (PAD * 2), FRAME_H + (PAD * 2));
+        
+        pc.width = 0; pc.height = 0; // Garbage Collector
+        renderWorkspace();
+    }
+
+    // Dibuja el entorno interactivo (Recuadro + Tiradores) y actualiza el output final de 1080p
+    function renderWorkspace() {
+        editorCanvas.width = cachedPageCanvas.width;
+        editorCanvas.height = cachedPageCanvas.height;
+        const ctx = editorCanvas.getContext('2d');
+
+        // 1. Dibujar el fragmento de la hoja escaneada
+        ctx.drawImage(cachedPageCanvas, 0, 0);
+
+        // Coordenadas actuales de la caja en este lienzo expandido
+        const bx = PAD + t3OffsetX;
+        const by = PAD + t3OffsetY;
+        const bw = t3CustomW;
+        const bh = t3CustomH;
+
+        // 2. Dibujar la caja de recorte (Estilo profesional de diseño)
+        ctx.strokeStyle = "#2563eb"; ctx.lineWidth = 6;
+        ctx.setLineDash([12, 8]); ctx.strokeRect(bx, by, bw, bh);
+        ctx.setLineDash([]); // Reset de trazo
+
+        // Sombreado de área excluida (Opcional, da un aspecto pro)
+        ctx.fillStyle = "rgba(15, 23, 42, 0.2)";
+        ctx.fillRect(0, 0, editorCanvas.width, by); // Arriba
+        ctx.fillRect(0, by + bh, editorCanvas.width, editorCanvas.height - (by + bh)); // Abajo
+        ctx.fillRect(0, by, bx, bh); // Izquierda
+        ctx.fillRect(bx + bw, by, editorCanvas.width - (bx + bw), bh); // Derecha
+
+        // 3. Dibujar los 4 Tiradores (Esquinas)
+        ctx.fillStyle = "#2563eb"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4;
+        const corners = [
+            {x: bx, y: by},          // TL
+            {x: bx + bw, y: by},     // TR
+            {x: bx, y: by + bh},     // BL
+            {x: bx + bw, y: by + bh}  // BR
+        ];
+        corners.forEach(c => {
+            ctx.beginPath(); ctx.arc(c.x, c.y, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         });
 
-        downloadPdfBtn.addEventListener('click', async () => {
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
-            for (let i = 0; i < allSheets.length; i++) {
-                if (i > 0) pdf.addPage('a3', 'landscape');
-                pdf.addImage(allSheets[i].canvas.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, 420, 297);
+        // 4. Actualizar instantáneamente la ventana de vista previa real (1920x1080)
+        previewCanvas.width = 1920; previewCanvas.height = 1080;
+        const pCtx = previewCanvas.getContext('2d');
+        pCtx.fillStyle = "#000000"; pCtx.fillRect(0, 0, 1920, 1080);
+        pCtx.drawImage(cachedPageCanvas, bx, by, bw, bh, 0, 0, 1920, 1080);
+    }
+
+    // --- MANEJO DE EVENTOS DE ARRASTRE SOBRE EL LIENZO ---
+    editorCanvas.addEventListener('mousedown', (e) => {
+        const rect = editorCanvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (editorCanvas.width / rect.width);
+        const my = (e.clientY - rect.top) * (editorCanvas.height / rect.height);
+
+        const bx = PAD + t3OffsetX, by = PAD + t3OffsetY;
+        const bw = t3CustomW, bh = t3CustomH;
+
+        startMouseX = mx; startMouseY = my;
+        startOffsetX = t3OffsetX; startOffsetY = t3OffsetY;
+        startW = t3CustomW; startH = t3CustomH;
+
+        // Comprobación de colisión con tiradores (Hit Test)
+        if (Math.hypot(mx - bx, my - by) < HANDLE_RADIUS) dragMode = 'tl';
+        else if (Math.hypot(mx - (bx + bw), my - by) < HANDLE_RADIUS) dragMode = 'tr';
+        else if (Math.hypot(mx - bx, my - (by + bh)) < HANDLE_RADIUS) dragMode = 'bl';
+        else if (Math.hypot(mx - (bx + bw), my - (by + bh)) < HANDLE_RADIUS) dragMode = 'br';
+        // Comprobación de colisión en el centro de la caja (Mover caja)
+        else if (mx > bx && mx < bx + bw && my > by && my < by + bh) dragMode = 'move';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!dragMode) return;
+        const rect = editorCanvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (editorCanvas.width / rect.width);
+        const my = (e.clientY - rect.top) * (editorCanvas.height / rect.height);
+
+        const dx = mx - startMouseX;
+        const dy = my - startMouseY;
+
+        if (dragMode === 'move') {
+            t3OffsetX = startOffsetX + dx;
+            t3OffsetY = startOffsetY + dy;
+        } else if (dragMode === 'br') {
+            t3CustomW = Math.max(100, startW + dx);
+            t3CustomH = Math.max(56, startH + dy);
+        } else if (dragMode === 'tl') {
+            t3OffsetX = startOffsetX + dx; t3OffsetY = startOffsetY + dy;
+            t3CustomW = Math.max(100, startW - dx); t3CustomH = Math.max(56, startH - dy);
+        } else if (dragMode === 'tr') {
+            t3OffsetY = startOffsetY + dy;
+            t3CustomW = Math.max(100, startW + dx); t3CustomH = Math.max(56, startH - dy);
+        } else if (dragMode === 'bl') {
+            t3OffsetX = startOffsetX + dx;
+            t3CustomW = Math.max(100, startW - dx); t3CustomH = Math.max(56, startH + dy);
+        }
+        renderWorkspace();
+    });
+
+    window.addEventListener('mouseup', () => { dragMode = null; });
+
+    document.getElementById('t3-prev-frame').oninput = (e) => {
+        document.getElementById('t3-frame-val').textContent = e.target.value;
+        loadFrameCache(); // Recarga la caché al mover la barra de fotogramas
+    };
+
+    // COMPILAR EL VIDEO USANDO LAS MEDIDAS EXTRAÍDAS DE TUS TIRADORES VISUALES
+    document.getElementById('t3-btn').onclick = async () => {
+        const file = t3File.files[0];
+        const fps = parseInt(document.getElementById('t3-fps').value);
+        if(!file) return alert("Sube tu archivo PDF primero.");
+
+        log("Abriendo PDF para reensamblaje definitivo...");
+        const pdf = await pdfjsLib.getDocument(URL.createObjectURL(file)).promise;
+        const frames = [];
+        
+        const c = document.createElement('canvas'); c.width = 1920; c.height = 1080;
+        const cx = c.getContext('2d');
+
+        for (let p = 1; p <= pdf.numPages; p++) {
+            log(`Procesando hoja ${p} de ${pdf.numPages}... Aplicando caja visual.`);
+            const page = await pdf.getPage(p);
+            const vp = page.getViewport({ scale: A3_W / page.getViewport({scale:1}).width });
+            const pc = document.createElement('canvas'); pc.width = A3_W; pc.height = A3_H;
+            await page.render({ canvasContext: pc.getContext('2d'), viewport: vp }).promise;
+
+            for (let i = 0; i < 30; i++) {
+                const col = i % 5, row = Math.floor(i / 5);
+                
+                // Aplicamos las coordenadas del recuadro interactivo calibrado por ti
+                const x = MARGIN + (col * FRAME_W) + t3OffsetX;
+                const y = MARGIN + (row * FRAME_H) + (row * V_GAP) + t3OffsetY;
+                
+                cx.fillStyle = "white"; cx.fillRect(0,0,1920,1080);
+                cx.drawImage(pc, x, y, t3CustomW, t3CustomH, 0, 0, 1920, 1080);
+                
+                const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
+                frames.push(URL.createObjectURL(blob));
             }
-            pdf.save("fotogramas_A3.pdf");
-        });
+            pc.width = 0; pc.height = 0;
+        }
 
-        // --- LÓGICA PESTAÑA 3 --- (Sin cambios)
-        const pdfFile = document.getElementById('pdfFile');
-        const processPdfBtn = document.getElementById('processPdfBtn');
-        const downloadVideoBtn = document.getElementById('downloadVideoBtn');
-        const statusDiv2 = document.getElementById('status2');
-        const resultVideo = document.getElementById('resultVideo');
+        log("Compilando película fluida...");
+        const recC = document.createElement('canvas'); recC.width = 1920; recC.height = 1080;
+        const rx = recC.getContext('2d');
+        const stream = recC.captureStream(fps);
+        const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 10000000 });
+        const chunks = [];
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = () => {
+            const v = document.getElementById('t3-video');
+            v.src = URL.createObjectURL(new Blob(chunks, {type:'video/webm'}));
+            v.style.display = 'block';
+            document.getElementById('t3-dl').href = v.src;
+            document.getElementById('t3-dl').download = "rotoscopia_tiradores.webm";
+            document.getElementById('t3-dl').style.display = 'flex';
+            log("¡Video generado y perfectamente alineado!");
+        };
 
-        processPdfBtn.addEventListener('click', async () => {
-            if (!pdfFile.files[0]) return alert("Sube el PDF");
-            const fps = parseInt(document.getElementById('outFpsInput').value);
-            processPdfBtn.disabled = true; statusDiv2.textContent = "Leyendo PDF...";
-            const fileReader = new FileReader();
-            fileReader.onload = async function() {
-                const pdf = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
-                const frames = [];
-                const c = document.createElement('canvas'); c.width = 1920; c.height = 1080;
-                const ctx = c.getContext('2d');
-                for (let p = 1; p <= pdf.numPages; p++) {
-                    statusDiv2.textContent = `Analizando hoja ${p}...`;
-                    const page = await pdf.getPage(p);
-                    const vp = page.getViewport({ scale: A3_WIDTH / page.getViewport({scale:1}).width });
-                    const pc = document.createElement('canvas'); pc.width = A3_WIDTH; pc.height = A3_HEIGHT;
-                    await page.render({ canvasContext: pc.getContext('2d'), viewport: vp }).promise;
-                    for (let i = 0; i < 30; i++) {
-                        const x = MARGIN + (i%5 * FRAME_W), y = MARGIN + (Math.floor(i/5) * FRAME_H) + (Math.floor(i/5) * VERTICAL_GAP);
-                        ctx.fillRect(0,0,1920,1080); ctx.drawImage(pc, x, y, FRAME_W, FRAME_H, 0, 0, 1920, 1080);
-                        const img = new Image(); img.src = c.toDataURL('image/jpeg', 0.9);
-                        await new Promise(r => img.onload = r); frames.push(img);
-                    }
-                }
-                const recC = document.createElement('canvas'); recC.width = 1920; recC.height = 1080;
-                const recCtx = recC.getContext('2d');
-                const stream = recC.captureStream(fps);
-                const recorder = new MediaRecorder(stream, { mimeType: 'video/webm', videoBitsPerSecond: 10000000 });
-                const chunks = []; recorder.ondataavailable = e => chunks.push(e.data);
-                recorder.onstop = () => {
-                    resultVideo.src = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
-                    resultVideo.style.display = 'block';
-                    downloadVideoBtn.href = resultVideo.src; downloadVideoBtn.download = "resultado.webm";
-                    downloadVideoBtn.style.display = 'block';
-                    processPdfBtn.disabled = false; statusDiv2.textContent = "¡Video generado!";
+        recorder.start();
+        let f = 0; const start = performance.now();
+        function draw() {
+            if (f < frames.length) {
+                const img = new Image(); img.src = frames[f];
+                img.onload = () => {
+                    rx.drawImage(img, 0, 0); f++;
+                    const delay = (start + (f * (1000/fps))) - performance.now();
+                    setTimeout(draw, Math.max(0, delay));
                 };
-                recorder.start();
-                let f = 0;
-                const startTime = performance.now();
-                function draw() {
-                    if (f < frames.length) {
-                        recCtx.drawImage(frames[f++], 0, 0, 1920, 1080);
-                        const delay = (startTime + (f * (1000/fps))) - performance.now();
-                        setTimeout(draw, Math.max(0, delay));
-                    } else { setTimeout(() => recorder.stop(), 200); }
-                }
-                draw();
-            };
-            fileReader.readAsArrayBuffer(pdfFile.files[0]);
-        });
-    </script>
+            } else { setTimeout(() => recorder.stop(), 500); }
+        }
+        draw();
+    };
+</script>
 </body>
 </html>
